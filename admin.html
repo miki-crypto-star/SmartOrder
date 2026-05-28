@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>SmartOrder Admin</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<style>
+body{
+  margin:0;
+  font-family:sans-serif;
+  background:#f3f4f6;
+  color:#111827;
+}
+
+header{
+  background:#111827;
+  color:white;
+  padding:14px;
+  position:sticky;
+  top:0;
+  z-index:10;
+}
+
+h1{
+  margin:0;
+  font-size:22px;
+}
+
+.wrap{
+  padding:12px;
+  max-width:1200px;
+  margin:auto;
+}
+
+.card{
+  background:white;
+  border-radius:14px;
+  padding:14px;
+  margin-bottom:12px;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);
+}
+
+.row{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+input,
+select,
+button{
+  padding:11px;
+  border-radius:10px;
+  border:1px solid #ccc;
+  font-size:16px;
+  box-sizing:border-box;
+}
+
+input,
+select{
+  min-width:120px;
+}
+
+button{
+  border:none;
+  background:#2563eb;
+  color:white;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+button.green{
+  background:#16a34a;
+}
+
+button.red{
+  background:#dc2626;
+}
+
+button.gray{
+  background:#6b7280;
+}
+
+button.orange{
+  background:#f97316;
+}
+
+button.black{
+  background:#111827;
+}
+
+.small{
+  font-size:13px;
+  color:#666;
+}
+
+.badge{
+  display:inline-block;
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:12px;
+  background:#e5e7eb;
+  margin:2px;
+}
+
+.menuBox{
+  border:1px solid #ddd;
+  border-radius:10px;
+  padding:12px;
+  margin-bottom:10px;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:8px;
+  margin-top:10px;
+}
+
+#qrImg{
+  width:240px;
+  max-width:100%;
+  margin-top:10px;
+}
+
+.total{
+  font-size:20px;
+  font-weight:bold;
+  margin-top:10px;
+}
+
+details{
+  margin-top:10px;
+}
+
+summary{
+  cursor:pointer;
+  font-weight:bold;
+  padding:10px;
+  background:#f3f4f6;
+  border-radius:10px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>SmartOrder Admin</h1>
+  <div id="shopInfo" class="small">読み込み中...</div>
+
+  <div class="row" style="margin-top:10px;">
+    <button class="gray" onclick="openKitchen()">注文画面へ戻る</button>
+    <button class="black" onclick="logout()">ログアウト</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+<div class="card">
+
+  <h2>お客様注文QR</h2>
+
+  <button onclick="generateQR()">QRコード発行</button>
+
+  <div id="qrUrl" class="small"></div>
+
+  <img id="qrImg">
+
+</div>
+
+<div class="card">
+
+  <h2>売上集計</h2>
+
+  <div id="salesBox"></div>
+
+  <div class="row" style="margin-top:12px;">
+    <button onclick="downloadCSV()">CSV出力</button>
+    <button class="green" onclick="downloadExcel()">Excel保存</button>
+  </div>
+
+</div>
+
+<div class="card">
+
+  <h2>店舗設定</h2>
+
+  <div class="grid">
+
+    <div>
+      <div class="small">店舗名</div>
+      <input id="shopName">
+    </div>
+
+    <div>
+      <div class="small">税率</div>
+      <input id="taxRate" type="number" step="0.01">
+    </div>
+
+    <div>
+      <div class="small">インボイス番号</div>
+      <input id="invoiceNumber">
+    </div>
+
+    <div>
+      <div class="small">テーブル数</div>
+      <input id="tables" type="number">
+    </div>
+
+    <div>
+      <div class="small">管理PASS</div>
+      <input id="adminPass">
+    </div>
+
+  </div>
+
+  <br>
+
+  <button onclick="saveSettings()">設定保存</button>
+
+</div>
+
+<div class="card">
+
+  <details>
+
+    <summary>メニュー管理を開く</summary>
+
+    <br>
+
+    <h3>メニュー追加</h3>
+
+    <div class="row">
+
+      <input id="menuNumber" placeholder="番号">
+
+      <input id="menuName" placeholder="商品名">
+
+      <select id="menuCategory">
+        <option value="drink">ドリンク</option>
+        <option value="food">フード</option>
+        <option value="other">その他</option>
+      </select>
+
+      <input id="menuPrice" type="number" placeholder="税込価格">
+
+      <button onclick="addMenu()">追加</button>
+
+    </div>
+
+    <br>
+
+    <h3>メニュー一覧</h3>
+
+    <div id="menuList"></div>
+
+  </details>
+
+</div>
+
+</div>
+
+<script>
+
+const firebaseConfig = {
+  databaseURL: "https://smartorder-e65ab-default-rtdb.asia-southeast1.firebasedatabase.app/"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const db = firebase.database();
+
+const params = new URLSearchParams(location.search);
+
+let shopCode =
+params.get("shop")
+||
+sessionStorage.getItem("smartOrderShopCode")
+||
+"";
+
+if(
+  !shopCode
+  ||
+  sessionStorage.getItem("smartOrderLoggedIn") !== "true"
+){
+  location.href = "index.html";
+}
+
+let settingsData = {};
+let ordersData = {};
+let menuData = {};
+
+function yen(v){
+  return "¥" + Number(v || 0).toLocaleString();
+}
+
+function esc(v){
+  return String(v ?? "")
+  .replace(/[&<>"']/g, s => ({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#39;"
+  }[s]));
+}
+
+function categoryLabel(cat){
+  if(cat === "drink") return "ドリンク";
+  if(cat === "food") return "フード";
+  return "その他";
+}
+
+function loadData(){
+
+  db.ref("shops/" + shopCode + "/settings")
+  .on("value", snap => {
+
+    settingsData = snap.val() || {};
+
+    document.getElementById("shopInfo").innerText =
+      "店舗：" + (settingsData.shopName || shopCode);
+
+    document.getElementById("shopName").value =
+      settingsData.shopName || "";
+
+    document.getElementById("taxRate").value =
+      settingsData.taxRate || 0.1;
+
+    document.getElementById("invoiceNumber").value =
+      settingsData.invoiceNumber || "";
+
+    document.getElementById("tables").value =
+      settingsData.tables || 0;
+
+    document.getElementById("adminPass").value =
+      settingsData.adminPass || "";
+
+  });
+
+  db.ref("shops/" + shopCode + "/orders")
+  .on("value", snap => {
+
+    ordersData = snap.val() || {};
+
+    renderSales();
+
+  });
+
+  db.ref("shops/" + shopCode + "/menu")
+  .on("value", snap => {
+
+    menuData = snap.val() || {};
+
+    renderMenu();
+
+  });
+
+}
+
+function saveSettings(){
+
+  db.ref("shops/" + shopCode + "/settings")
+  .update({
+
+    shopName:
+      document.getElementById("shopName").value.trim(),
+
+    taxRate:
+      Number(document.getElementById("taxRate").value || 0.1),
+
+    invoiceNumber:
+      document.getElementById("invoiceNumber").value.trim(),
+
+    tables:
+      Number(document.getElementById("tables").value || 0),
+
+    adminPass:
+      document.getElementById("adminPass").value.trim()
+
+  });
+
+  alert("保存しました");
+
+}
+
+function renderSales(){
+
+  let subtotalExTax = 0;
+  let taxTotal = 0;
+  let totalInTax = 0;
+  let paidTotal = 0;
+  let canceledTotal = 0;
+
+  Object.values(ordersData).forEach(order => {
+
+    subtotalExTax += Number(order.totalExTax || 0);
+
+    taxTotal += Number(order.totalTax || 0);
+
+    totalInTax += Number(order.totalInTax || 0);
+
+    if(
+      order.status === "paid"
+      ||
+      order.status === "provided"
+    ){
+      paidTotal += Number(order.totalInTax || 0);
+    }
+
+    if(order.status === "canceled"){
+      canceledTotal += Number(order.totalInTax || 0);
+    }
+
+  });
+
+  document.getElementById("salesBox").innerHTML = `
+
+    <div class="total">
+      税込売上 ${yen(totalInTax)}
+    </div>
+
+    <br>
+
+    税抜合計：${yen(subtotalExTax)}
+    <br>
+
+    消費税合計：${yen(taxTotal)}
+    <br>
+
+    会計済み：${yen(paidTotal)}
+    <br>
+
+    キャンセル：${yen(canceledTotal)}
+
+  `;
+
+}
+
+function generateQR(){
+
+  const url =
+  `https://miki-crypto-star.github.io/SmartOrder/order.html?shop=${encodeURIComponent(shopCode)}`;
+
+  document.getElementById("qrUrl").innerText = url;
+
+  document.getElementById("qrImg").src =
+  "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data="
+  +
+  encodeURIComponent(url);
+
+}
+
+function addMenu(){
+
+  const number =
+  document.getElementById("menuNumber").value.trim();
+
+  const name =
+  document.getElementById("menuName").value.trim();
+
+  const category =
+  document.getElementById("menuCategory").value;
+
+  const priceInTax =
+  Number(document.getElementById("menuPrice").value || 0);
+
+  if(!number || !name || !priceInTax){
+    alert("入力不足");
+    return;
+  }
+
+  const taxRate =
+  Number(settingsData.taxRate || 0.1);
+
+  const priceExTax =
+  Math.floor(priceInTax / (1 + taxRate));
+
+  const menuId =
+  number.toLowerCase();
+
+  db.ref("shops/" + shopCode + "/menu/" + menuId)
+  .set({
+
+    number:number,
+    name:name,
+    category:category,
+    categoryLabel:categoryLabel(category),
+    priceExTax:priceExTax,
+    priceInTax:priceInTax,
+    visible:true,
+    soldOut:false
+
+  });
+
+  document.getElementById("menuNumber").value = "";
+  document.getElementById("menuName").value = "";
+  document.getElementById("menuPrice").value = "";
+
+}
+
+function renderMenu(){
+
+  const box =
+  document.getElementById("menuList");
+
+  box.innerHTML = "";
+
+  const list =
+  Object.entries(menuData)
+  .sort((a,b)=>
+    String(a[1].number || "")
+    .localeCompare(String(b[1].number || ""))
+  );
+
+  if(list.length === 0){
+    box.innerHTML = "<p>メニューなし</p>";
+    return;
+  }
+
+  list.forEach(([menuId, menu]) => {
+
+    const div =
+    document.createElement("div");
+
+    div.className = "menuBox";
+
+    div.innerHTML = `
+
+      <b>
+        ${esc(menu.number || "")}
+        ${esc(menu.name || "")}
+      </b>
+
+      <br><br>
+
+      <span class="badge">
+        ${categoryLabel(menu.category)}
+      </span>
+
+      <span class="badge">
+        税込 ${yen(menu.priceInTax)}
+      </span>
+
+      <span class="badge">
+        表示 ${menu.visible ? "ON" : "OFF"}
+      </span>
+
+      <span class="badge">
+        売切 ${menu.soldOut ? "ON" : "OFF"}
+      </span>
+
+      <div class="grid">
+
+        <input
+          id="num_${menuId}"
+          value="${esc(menu.number || "")}"
+        >
+
+        <input
+          id="name_${menuId}"
+          value="${esc(menu.name || "")}"
+        >
+
+        <select id="cat_${menuId}">
+          <option value="drink" ${menu.category==="drink"?"selected":""}>ドリンク</option>
+          <option value="food" ${menu.category==="food"?"selected":""}>フード</option>
+          <option value="other" ${menu.category==="other"?"selected":""}>その他</option>
+        </select>
+
+        <input
+          id="price_${menuId}"
+          type="number"
+          value="${Number(menu.priceInTax || 0)}"
+        >
+
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+
+        <button onclick="saveMenu('${menuId}')">
+          編集保存
+        </button>
+
+        <button onclick="toggleVisible('${menuId}', ${menu.visible ? "true":"false"})">
+          表示切替
+        </button>
+
+        <button class="orange"
+          onclick="toggleSoldOut('${menuId}', ${menu.soldOut ? "true":"false"})">
+          売切切替
+        </button>
+
+        <button class="red"
+          onclick="deleteMenu('${menuId}')">
+          削除
+        </button>
+
+      </div>
+
+    `;
+
+    box.appendChild(div);
+
+  });
+
+}
+
+function saveMenu(menuId){
+
+  const number =
+  document.getElementById("num_" + menuId).value.trim();
+
+  const name =
+  document.getElementById("name_" + menuId).value.trim();
+
+  const category =
+  document.getElementById("cat_" + menuId).value;
+
+  const priceInTax =
+  Number(document.getElementById("price_" + menuId).value || 0);
+
+  const taxRate =
+  Number(settingsData.taxRate || 0.1);
+
+  const priceExTax =
+  Math.floor(priceInTax / (1 + taxRate));
+
+  db.ref("shops/" + shopCode + "/menu/" + menuId)
+  .update({
+
+    number:number,
+    name:name,
+    category:category,
+    categoryLabel:categoryLabel(category),
+    priceExTax:priceExTax,
+    priceInTax:priceInTax
+
+  });
+
+  alert("更新しました");
+
+}
+
+function toggleVisible(menuId, current){
+
+  db.ref("shops/" + shopCode + "/menu/" + menuId)
+  .update({
+    visible: !current
+  });
+
+}
+
+function toggleSoldOut(menuId, current){
+
+  db.ref("shops/" + shopCode + "/menu/" + menuId)
+  .update({
+    soldOut: !current
+  });
+
+}
+
+function deleteMenu(menuId){
+
+  if(!confirm("削除しますか？")) return;
+
+  db.ref("shops/" + shopCode + "/menu/" + menuId)
+  .remove();
+
+}
+
+function downloadCSV(){
+
+  let csv =
+  "日時,名前,注文種別,状態,税込\n";
+
+  Object.values(ordersData).forEach(order => {
+
+    csv +=
+    `"${new Date(order.createdAt || 0).toLocaleString("ja-JP")}","${order.customerName || ""}","${order.orderType || ""}","${order.status || ""}","${order.totalInTax || 0}"\n`;
+
+  });
+
+  const blob =
+  new Blob([csv], {
+    type:"text/csv;charset=utf-8"
+  });
+
+  const url =
+  URL.createObjectURL(blob);
+
+  const a =
+  document.createElement("a");
+
+  a.href = url;
+
+  a.download = "smartorder_sales.csv";
+
+  a.click();
+
+}
+
+function downloadExcel(){
+
+  let html =
+  "<table border='1'>";
+
+  html +=
+  "<tr><th>日時</th><th>名前</th><th>注文種別</th><th>状態</th><th>税込</th></tr>";
+
+  Object.values(ordersData).forEach(order => {
+
+    html += `
+      <tr>
+        <td>${new Date(order.createdAt || 0).toLocaleString("ja-JP")}</td>
+        <td>${esc(order.customerName || "")}</td>
+        <td>${esc(order.orderType || "")}</td>
+        <td>${esc(order.status || "")}</td>
+        <td>${order.totalInTax || 0}</td>
+      </tr>
+    `;
+
+  });
+
+  html += "</table>";
+
+  const blob =
+  new Blob(
+    ["\uFEFF" + html],
+    {
+      type:"application/vnd.ms-excel"
+    }
+  );
+
+  const url =
+  URL.createObjectURL(blob);
+
+  const a =
+  document.createElement("a");
+
+  a.href = url;
+
+  a.download = "smartorder_sales.xls";
+
+  a.click();
+
+}
+
+function openKitchen(){
+
+  location.href =
+  "kitchen.html?shop="
+  +
+  encodeURIComponent(shopCode);
+
+}
+
+function logout(){
+
+  sessionStorage.removeItem("smartOrderShopCode");
+
+  sessionStorage.removeItem("smartOrderLoggedIn");
+
+  location.href = "index.html";
+
+}
+
+loadData();
+
+</script>
+
+</body>
+</html>
