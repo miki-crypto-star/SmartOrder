@@ -16,16 +16,18 @@ h1{margin:0;font-size:22px;}
 .card{background:white;border-radius:12px;padding:12px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);}
 .row{display:flex;gap:8px;flex-wrap:wrap;}
 input,select,button{padding:10px;border-radius:8px;border:1px solid #ccc;font-size:16px;box-sizing:border-box;}
+input,select{min-width:130px;}
 button{border:none;background:#2563eb;color:white;font-weight:bold;cursor:pointer;}
 button.red{background:#dc2626;}
 button.green{background:#16a34a;}
 button.gray{background:#6b7280;}
 button.orange{background:#f97316;}
+button.black{background:#111827;}
 .small{font-size:13px;color:#666;}
 .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;background:#e5e7eb;margin:2px;}
 .orderCard{border-left:8px solid #2563eb;}
 .order-paid{border-left-color:#16a34a;background:#ecfdf5;}
-.order-provided{border-left-color:#6b7280;opacity:.65;}
+.order-provided{border-left-color:#6b7280;opacity:.7;}
 .order-canceled{border-left-color:#dc2626;opacity:.55;}
 .item{border-radius:8px;padding:8px;margin-top:6px;display:flex;justify-content:space-between;gap:8px;}
 .drink{background:#dbeafe;}
@@ -33,8 +35,8 @@ button.orange{background:#f97316;}
 .other{background:#e5e7eb;}
 .total{text-align:right;font-size:20px;font-weight:bold;margin-top:10px;}
 .menuBox{border:1px solid #ddd;border-radius:10px;padding:10px;margin-bottom:8px;}
+.menuEditGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:8px;}
 #qrImg{width:220px;max-width:100%;margin-top:10px;}
-.hidden{display:none;}
 </style>
 </head>
 
@@ -47,58 +49,61 @@ button.orange{background:#f97316;}
 
 <div class="wrap">
 
-  <div class="card">
-    <h2>店舗管理</h2>
-    <div class="row">
-      <button onclick="generateQR()">お客様用QR発行</button>
-      <button class="gray" onclick="logout()">ログアウト</button>
-    </div>
-    <div id="qrUrl" class="small"></div>
-    <img id="qrImg">
+<div class="card">
+  <h2>店舗管理</h2>
+  <div class="row">
+    <button onclick="generateQR()">お客様用QR発行</button>
+    <button class="gray" onclick="logout()">ログアウト</button>
   </div>
+  <div id="qrUrl" class="small"></div>
+  <img id="qrImg">
+</div>
 
-  <div class="card">
-    <h2>注文一覧</h2>
-    <div class="row">
-      <select id="filterStatus" onchange="renderOrders()">
-        <option value="active">表示中の注文</option>
-        <option value="all">すべて</option>
-        <option value="new">注文受付</option>
-        <option value="paid">お会計済み</option>
-        <option value="provided">商品提供済み</option>
-        <option value="canceled">キャンセル</option>
-      </select>
-      <button onclick="renderOrders()">更新</button>
-    </div>
-    <div id="orders"></div>
+<div class="card">
+  <h2>注文一覧</h2>
+  <div class="row">
+    <select id="filterStatus" onchange="renderOrders()">
+      <option value="active">表示中の注文</option>
+      <option value="all">すべて</option>
+      <option value="new">注文受付</option>
+      <option value="paid">お会計済み</option>
+      <option value="provided">商品提供済み</option>
+      <option value="canceled">キャンセル</option>
+    </select>
+    <button onclick="renderOrders()">更新</button>
   </div>
+  <div id="orders"></div>
+</div>
 
-  <div class="card">
-    <h2>メニュー追加</h2>
-    <div class="row">
-      <input id="menuNumber" placeholder="番号 例 D003">
-      <input id="menuName" placeholder="商品名">
-      <select id="menuCategory">
-        <option value="drink">ドリンク</option>
-        <option value="food">フード</option>
-        <option value="other">その他</option>
-      </select>
-      <input id="menuPrice" type="number" placeholder="税込価格">
-      <button onclick="addMenu()">追加</button>
-    </div>
+<div class="card">
+  <h2>メニュー追加</h2>
+  <div class="row">
+    <input id="menuNumber" placeholder="番号 例 D003">
+    <input id="menuName" placeholder="商品名">
+    <select id="menuCategory">
+      <option value="drink">ドリンク</option>
+      <option value="food">フード</option>
+      <option value="other">その他</option>
+    </select>
+    <input id="menuPrice" type="number" placeholder="税込価格">
+    <button onclick="addMenu()">追加</button>
   </div>
+</div>
 
-  <div class="card">
-    <h2>メニュー一覧</h2>
-    <div id="menuList"></div>
-  </div>
+<div class="card">
+  <h2>メニュー一覧・編集</h2>
+  <div id="menuList"></div>
+</div>
 
-  <div class="card">
-    <h2>売上集計</h2>
-    <div id="salesBox"></div>
-    <br>
+<div class="card">
+  <h2>売上集計</h2>
+  <div id="salesBox"></div>
+  <br>
+  <div class="row">
     <button onclick="downloadCSV()">CSV出力</button>
+    <button class="green" onclick="downloadExcel()">Excel保存</button>
   </div>
+</div>
 
 </div>
 
@@ -121,27 +126,28 @@ if(!shopCode || sessionStorage.getItem("smartOrderLoggedIn") !== "true"){
   location.href = "index.html";
 }
 
-function yen(v){
-  return "¥" + Number(v || 0).toLocaleString();
-}
-
-function categoryLabel(cat){
-  if(cat === "drink") return "ドリンク";
-  if(cat === "food") return "フード";
-  return "その他";
+function yen(v){return "¥" + Number(v || 0).toLocaleString();}
+function esc(v){return String(v ?? "").replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));}
+function categoryLabel(cat){if(cat==="drink")return"ドリンク";if(cat==="food")return"フード";return"その他";}
+function todayKey(){
+  const d=new Date();
+  return d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");
 }
 
 function loadShop(){
   db.ref("shops/" + shopCode + "/settings").on("value", snap => {
     settingsData = snap.val() || {};
     document.getElementById("shopInfo").innerText =
-      "店舗：" + (settingsData.shopName || shopCode) + " / shopCode：" + shopCode;
+      "店舗：" + (settingsData.shopName || shopCode) +
+      " / shopCode：" + shopCode +
+      " / インボイス：" + (settingsData.invoiceNumber || "未設定");
   });
 
   db.ref("shops/" + shopCode + "/orders").on("value", snap => {
     ordersData = snap.val() || {};
     renderOrders();
     renderSales();
+    saveDailySales();
   });
 
   db.ref("shops/" + shopCode + "/menu").on("value", snap => {
@@ -151,88 +157,74 @@ function loadShop(){
 }
 
 function renderOrders(){
-  const box = document.getElementById("orders");
-  const filter = document.getElementById("filterStatus").value;
-  box.innerHTML = "";
+  const box=document.getElementById("orders");
+  const filter=document.getElementById("filterStatus").value;
+  const now=Date.now();
+  box.innerHTML="";
 
-  const now = Date.now();
+  const list=Object.entries(ordersData).sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
+  let shown=0;
 
-  const list = Object.entries(ordersData).sort((a,b)=>{
-    return (b[1].createdAt || 0) - (a[1].createdAt || 0);
-  });
+  list.forEach(([orderId,order])=>{
+    const status=order.status||"new";
+    const hideAt=Number(order.hideAt||0);
 
-  if(list.length === 0){
-    box.innerHTML = "<p>注文はまだありません。</p>";
-    return;
-  }
-
-  let shown = 0;
-
-  list.forEach(([orderId, order]) => {
-    const status = order.status || "new";
-    const hideAt = Number(order.hideAt || 0);
-
-    if(filter === "active"){
-      if((status === "provided" || status === "canceled") && hideAt && now >= hideAt){
-        return;
-      }
-    }else if(filter !== "all" && status !== filter){
-      return;
-    }
+    if(filter==="active"){
+      if((status==="provided"||status==="canceled") && hideAt && now>=hideAt)return;
+    }else if(filter!=="all" && status!==filter)return;
 
     shown++;
 
-    const items = order.items || {};
-    let itemsHtml = "";
-
-    Object.values(items).forEach(item => {
-      itemsHtml += `
-        <div class="item ${item.category || "other"}">
+    let itemsHtml="";
+    Object.values(order.items||{}).forEach(item=>{
+      itemsHtml+=`
+        <div class="item ${item.category||"other"}">
           <div>
-            <b>${item.menuNumber || ""} ${item.name || ""}</b><br>
-            <span class="small">${categoryLabel(item.category)} / 数量：${item.qty || 0}</span>
+            <b>${esc(item.menuNumber||"")} ${esc(item.name||"")}</b><br>
+            <span class="small">${categoryLabel(item.category)} / 数量：${item.qty||0}</span>
           </div>
           <div><b>${yen(item.subtotalInTax)}</b></div>
         </div>
       `;
     });
 
-    const div = document.createElement("div");
-    div.className = "card orderCard order-" + status;
-
-    const orderTypeLabel = order.orderType === "eatIn" ? "イートイン" : "テイクアウト";
-    const createdText = order.createdAt ? new Date(order.createdAt).toLocaleString("ja-JP") : "-";
-
-    let actionHtml = "";
-
-    if(status === "new"){
-      actionHtml = `
+    let actionHtml="";
+    if(status==="new"){
+      actionHtml=`
         <button class="green" onclick="setPaid('${orderId}')">お会計済み</button>
         <button class="red" onclick="cancelOrder('${orderId}')">キャンセル</button>
+        <button class="black" onclick="printReceipt('${orderId}')">領収書PDF</button>
       `;
-    }else if(status === "paid"){
-      actionHtml = `
+    }else if(status==="paid"){
+      actionHtml=`
         <button class="gray" onclick="setProvided('${orderId}')">商品提供済み</button>
         <button class="red" onclick="cancelOrder('${orderId}')">キャンセル</button>
+        <button class="black" onclick="printReceipt('${orderId}')">領収書PDF</button>
       `;
-    }else if(status === "provided"){
-      actionHtml = `<span class="small">商品提供済み：5秒後に非表示</span>`;
-    }else if(status === "canceled"){
-      actionHtml = `<span class="small">キャンセル済み：5秒後に非表示</span>`;
+    }else if(status==="provided"){
+      actionHtml=`
+        <span class="small">商品提供済み：5秒後に非表示</span>
+        <button class="black" onclick="printReceipt('${orderId}')">領収書PDF</button>
+      `;
+    }else if(status==="canceled"){
+      actionHtml=`<span class="small">キャンセル済み：5秒後に非表示</span>`;
     }
 
-    div.innerHTML = `
-      <h3>${order.customerName || "名無し"}</h3>
+    const orderTypeLabel=order.orderType==="eatIn"?"イートイン":"テイクアウト";
+    const createdText=order.createdAt?new Date(order.createdAt).toLocaleString("ja-JP"):"-";
 
+    const div=document.createElement("div");
+    div.className="card orderCard order-"+status;
+    div.innerHTML=`
+      <h3>${esc(order.customerName||"名無し")}</h3>
       <div>
         <span class="badge">${orderTypeLabel}</span>
-        ${order.tableNo ? `<span class="badge">テーブル ${order.tableNo}</span>` : ""}
+        ${order.tableNo?`<span class="badge">テーブル ${esc(order.tableNo)}</span>`:""}
         <span class="badge">状態：${status}</span>
-        ${order.paid ? `<span class="badge">お会計済み</span>` : ""}
+        ${order.paid?`<span class="badge">お会計済み</span>`:""}
       </div>
 
       <div class="small">${createdText}</div>
-
       ${itemsHtml}
 
       <div class="total">
@@ -244,180 +236,285 @@ function renderOrders(){
         ${actionHtml}
       </div>
     `;
-
     box.appendChild(div);
   });
 
-  if(shown === 0){
-    box.innerHTML = "<p>表示中の注文はありません。</p>";
-  }
+  if(shown===0)box.innerHTML="<p>表示中の注文はありません。</p>";
 }
 
 function setPaid(orderId){
-  db.ref("shops/" + shopCode + "/orders/" + orderId).update({
-    status: "paid",
-    paid: true,
-    paidAt: Date.now(),
-    updatedAt: Date.now()
+  db.ref("shops/"+shopCode+"/orders/"+orderId).update({
+    status:"paid",
+    paid:true,
+    paidAt:Date.now(),
+    updatedAt:Date.now()
   });
 }
 
 function setProvided(orderId){
-  db.ref("shops/" + shopCode + "/orders/" + orderId).update({
-    status: "provided",
-    providedAt: Date.now(),
-    hideAt: Date.now() + 5000,
-    updatedAt: Date.now()
+  db.ref("shops/"+shopCode+"/orders/"+orderId).update({
+    status:"provided",
+    providedAt:Date.now(),
+    hideAt:Date.now()+5000,
+    updatedAt:Date.now()
   });
-
-  setTimeout(renderOrders, 5200);
+  setTimeout(renderOrders,5200);
 }
 
 function cancelOrder(orderId){
-  if(!confirm("この注文をキャンセルしますか？")) return;
-
-  db.ref("shops/" + shopCode + "/orders/" + orderId).update({
-    status: "canceled",
-    canceledAt: Date.now(),
-    hideAt: Date.now() + 5000,
-    updatedAt: Date.now()
+  if(!confirm("この注文をキャンセルしますか？"))return;
+  db.ref("shops/"+shopCode+"/orders/"+orderId).update({
+    status:"canceled",
+    canceledAt:Date.now(),
+    hideAt:Date.now()+5000,
+    updatedAt:Date.now()
   });
-
-  setTimeout(renderOrders, 5200);
+  setTimeout(renderOrders,5200);
 }
 
 function renderMenu(){
-  const box = document.getElementById("menuList");
-  box.innerHTML = "";
+  const box=document.getElementById("menuList");
+  box.innerHTML="";
 
-  const list = Object.entries(menuData).sort((a,b)=>{
-    return String(a[1].number || "").localeCompare(String(b[1].number || ""));
-  });
+  const list=Object.entries(menuData).sort((a,b)=>String(a[1].number||"").localeCompare(String(b[1].number||"")));
 
-  if(list.length === 0){
-    box.innerHTML = "<p>メニューがありません。</p>";
+  if(list.length===0){
+    box.innerHTML="<p>メニューがありません。</p>";
     return;
   }
 
-  list.forEach(([menuId, menu]) => {
-    const div = document.createElement("div");
-    div.className = "menuBox";
-
-    div.innerHTML = `
-      <b>${menu.number || ""} ${menu.name || ""}</b><br>
+  list.forEach(([menuId,menu])=>{
+    const div=document.createElement("div");
+    div.className="menuBox";
+    div.innerHTML=`
+      <b>${esc(menu.number||"")} ${esc(menu.name||"")}</b><br>
       <span class="badge">${categoryLabel(menu.category)}</span>
       <span class="badge">税込 ${yen(menu.priceInTax)}</span>
-      <span class="badge">表示：${menu.visible ? "ON" : "OFF"}</span>
-      <span class="badge">売切：${menu.soldOut ? "ON" : "OFF"}</span>
+      <span class="badge">表示：${menu.visible?"ON":"OFF"}</span>
+      <span class="badge">売切：${menu.soldOut?"ON":"OFF"}</span>
+
+      <div class="menuEditGrid">
+        <input id="num_${menuId}" value="${esc(menu.number||"")}" placeholder="番号">
+        <input id="name_${menuId}" value="${esc(menu.name||"")}" placeholder="商品名">
+        <select id="cat_${menuId}">
+          <option value="drink" ${menu.category==="drink"?"selected":""}>ドリンク</option>
+          <option value="food" ${menu.category==="food"?"selected":""}>フード</option>
+          <option value="other" ${menu.category==="other"?"selected":""}>その他</option>
+        </select>
+        <input id="price_${menuId}" type="number" value="${Number(menu.priceInTax||0)}" placeholder="税込価格">
+      </div>
 
       <div class="row" style="margin-top:10px;">
-        <button onclick="toggleVisible('${menuId}', ${menu.visible ? "true" : "false"})">表示切替</button>
-        <button class="orange" onclick="toggleSoldOut('${menuId}', ${menu.soldOut ? "true" : "false"})">売切切替</button>
+        <button onclick="saveMenu('${menuId}')">編集保存</button>
+        <button onclick="toggleVisible('${menuId}', ${menu.visible?"true":"false"})">表示切替</button>
+        <button class="orange" onclick="toggleSoldOut('${menuId}', ${menu.soldOut?"true":"false"})">売切切替</button>
       </div>
     `;
-
     box.appendChild(div);
   });
 }
 
 function addMenu(){
-  const number = document.getElementById("menuNumber").value.trim();
-  const name = document.getElementById("menuName").value.trim();
-  const category = document.getElementById("menuCategory").value;
-  const priceInTax = Number(document.getElementById("menuPrice").value || 0);
+  const number=document.getElementById("menuNumber").value.trim();
+  const name=document.getElementById("menuName").value.trim();
+  const category=document.getElementById("menuCategory").value;
+  const priceInTax=Number(document.getElementById("menuPrice").value||0);
 
-  if(!number || !name || !priceInTax){
+  if(!number||!name||!priceInTax){
     alert("番号・商品名・税込価格を入力してください。");
     return;
   }
 
-  const taxRate = Number(settingsData.taxRate || 0.1);
-  const priceExTax = Math.floor(priceInTax / (1 + taxRate));
-  const menuId = number.toLowerCase();
+  const taxRate=Number(settingsData.taxRate||0.1);
+  const priceExTax=Math.floor(priceInTax/(1+taxRate));
+  const menuId=number.toLowerCase();
 
-  db.ref("shops/" + shopCode + "/menu/" + menuId).set({
-    number,
-    name,
-    category,
-    categoryLabel: categoryLabel(category),
-    priceExTax,
-    priceInTax,
-    visible: true,
-    soldOut: false
+  db.ref("shops/"+shopCode+"/menu/"+menuId).set({
+    number,name,category,categoryLabel:categoryLabel(category),
+    priceExTax,priceInTax,visible:true,soldOut:false
   });
 
-  document.getElementById("menuNumber").value = "";
-  document.getElementById("menuName").value = "";
-  document.getElementById("menuPrice").value = "";
+  document.getElementById("menuNumber").value="";
+  document.getElementById("menuName").value="";
+  document.getElementById("menuPrice").value="";
 }
 
-function toggleVisible(menuId, current){
-  db.ref("shops/" + shopCode + "/menu/" + menuId).update({
-    visible: !current
+function saveMenu(menuId){
+  const number=document.getElementById("num_"+menuId).value.trim();
+  const name=document.getElementById("name_"+menuId).value.trim();
+  const category=document.getElementById("cat_"+menuId).value;
+  const priceInTax=Number(document.getElementById("price_"+menuId).value||0);
+
+  if(!number||!name||!priceInTax){
+    alert("入力不足です。");
+    return;
+  }
+
+  const taxRate=Number(settingsData.taxRate||0.1);
+  const priceExTax=Math.floor(priceInTax/(1+taxRate));
+
+  db.ref("shops/"+shopCode+"/menu/"+menuId).update({
+    number,name,category,categoryLabel:categoryLabel(category),
+    priceExTax,priceInTax
   });
 }
 
-function toggleSoldOut(menuId, current){
-  db.ref("shops/" + shopCode + "/menu/" + menuId).update({
-    soldOut: !current
+function toggleVisible(menuId,current){
+  db.ref("shops/"+shopCode+"/menu/"+menuId).update({visible:!current});
+}
+
+function toggleSoldOut(menuId,current){
+  db.ref("shops/"+shopCode+"/menu/"+menuId).update({soldOut:!current});
+}
+
+function calcSales(){
+  let subtotalExTax=0,taxTotal=0,totalInTax=0,paidTotal=0,canceledTotal=0,orderCount=0,paidCount=0,canceledCount=0;
+  const key=todayKey();
+
+  Object.values(ordersData).forEach(order=>{
+    if(!order.createdAt)return;
+    const d=new Date(order.createdAt);
+    const orderKey=d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0");
+    if(orderKey!==key)return;
+
+    orderCount++;
+    const ex=Number(order.totalExTax||0);
+    const tax=Number(order.totalTax||0);
+    const total=Number(order.totalInTax||0);
+
+    subtotalExTax+=ex;
+    taxTotal+=tax;
+    totalInTax+=total;
+
+    if(order.paid===true || order.status==="paid" || order.status==="provided"){
+      paidTotal+=total;
+      paidCount++;
+    }
+
+    if(order.status==="canceled"){
+      canceledTotal+=total;
+      canceledCount++;
+    }
   });
+
+  return {subtotalExTax,taxTotal,totalInTax,paidTotal,canceledTotal,orderCount,paidCount,canceledCount,updatedAt:Date.now()};
 }
 
 function renderSales(){
-  let total = 0;
-  let paid = 0;
-  let canceled = 0;
-
-  Object.values(ordersData).forEach(order => {
-    const amount = Number(order.totalInTax || 0);
-    total += amount;
-
-    if(order.paid === true || order.status === "paid" || order.status === "provided"){
-      paid += amount;
-    }
-
-    if(order.status === "canceled"){
-      canceled += amount;
-    }
-  });
-
-  document.getElementById("salesBox").innerHTML = `
-    総注文額：${yen(total)}<br>
-    会計済み：${yen(paid)}<br>
-    キャンセル：${yen(canceled)}
+  const s=calcSales();
+  document.getElementById("salesBox").innerHTML=`
+    日別売上：${todayKey()}<br>
+    注文件数：${s.orderCount}件<br>
+    会計済件数：${s.paidCount}件<br>
+    キャンセル件数：${s.canceledCount}件<br><br>
+    税抜合計：${yen(s.subtotalExTax)}<br>
+    消費税合計：${yen(s.taxTotal)}<br>
+    税込合計：${yen(s.totalInTax)}<br>
+    会計済合計：${yen(s.paidTotal)}<br>
+    キャンセル合計：${yen(s.canceledTotal)}
   `;
 }
 
+function saveDailySales(){
+  const s=calcSales();
+  db.ref("shops/"+shopCode+"/dailySales/"+todayKey()).set(s);
+}
+
 function downloadCSV(){
-  let csv = "\uFEFF日時,名前,注文種別,テーブル,状態,会計済み,税抜,消費税,税込\n";
-
-  Object.values(ordersData).forEach(order => {
-    csv += `"${new Date(order.createdAt || 0).toLocaleString("ja-JP")}","${order.customerName || ""}","${order.orderType || ""}","${order.tableNo || ""}","${order.status || ""}","${order.paid ? "済" : "未"}","${order.totalExTax || 0}","${order.totalTax || 0}","${order.totalInTax || 0}"\n`;
+  let csv="\uFEFF日時,名前,注文種別,テーブル,状態,会計済み,税抜,消費税,税込\n";
+  Object.values(ordersData).forEach(order=>{
+    csv+=`"${new Date(order.createdAt||0).toLocaleString("ja-JP")}","${order.customerName||""}","${order.orderType||""}","${order.tableNo||""}","${order.status||""}","${order.paid?"済":"未"}","${order.totalExTax||0}","${order.totalTax||0}","${order.totalInTax||0}"\n`;
   });
-
-  const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-
-  a.href = url;
-  a.download = "smartorder_sales.csv";
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="smartorder_sales.csv";
   a.click();
-
   URL.revokeObjectURL(url);
 }
 
-function generateQR(){
-  const url = `https://miki-crypto-star.github.io/SmartOrder/order.html?shop=${encodeURIComponent(shopCode)}`;
+function downloadExcel(){
+  let html="<table border='1'><tr><th>日時</th><th>名前</th><th>注文種別</th><th>テーブル</th><th>状態</th><th>会計済み</th><th>税抜</th><th>消費税</th><th>税込</th></tr>";
+  Object.values(ordersData).forEach(order=>{
+    html+=`<tr><td>${new Date(order.createdAt||0).toLocaleString("ja-JP")}</td><td>${esc(order.customerName||"")}</td><td>${esc(order.orderType||"")}</td><td>${esc(order.tableNo||"")}</td><td>${esc(order.status||"")}</td><td>${order.paid?"済":"未"}</td><td>${order.totalExTax||0}</td><td>${order.totalTax||0}</td><td>${order.totalInTax||0}</td></tr>`;
+  });
+  html+="</table>";
 
-  document.getElementById("qrUrl").innerText = url;
-  document.getElementById("qrImg").src =
-    "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" + encodeURIComponent(url);
+  const blob=new Blob(["\uFEFF"+html],{type:"application/vnd.ms-excel"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="smartorder_sales.xls";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function printReceipt(orderId){
+  const order=ordersData[orderId];
+  if(!order){alert("注文データがありません。");return;}
+
+  let itemsHtml="";
+  Object.values(order.items||{}).forEach(item=>{
+    itemsHtml+=`
+      <tr>
+        <td>${esc(item.name||"")}</td>
+        <td>${item.qty||0}</td>
+        <td>${yen(item.priceInTax)}</td>
+        <td>${yen(item.subtotalInTax)}</td>
+      </tr>
+    `;
+  });
+
+  const w=window.open("","_blank");
+  w.document.write(`
+    <html>
+    <head>
+      <title>領収書</title>
+      <style>
+        body{font-family:sans-serif;padding:24px;}
+        h1{text-align:center;}
+        table{width:100%;border-collapse:collapse;margin-top:16px;}
+        th,td{border:1px solid #333;padding:8px;text-align:left;}
+        .right{text-align:right;}
+        .small{font-size:12px;color:#555;}
+      </style>
+    </head>
+    <body>
+      <h1>領収書</h1>
+      <p>店舗名：${esc(settingsData.shopName||shopCode)}</p>
+      <p>インボイス番号：${esc(settingsData.invoiceNumber||"未設定")}</p>
+      <p>発行日：${new Date().toLocaleString("ja-JP")}</p>
+      <p>お客様名：${esc(order.customerName||"")}</p>
+
+      <table>
+        <tr><th>商品</th><th>数量</th><th>単価</th><th>小計</th></tr>
+        ${itemsHtml}
+      </table>
+
+      <h2 class="right">合計 ${yen(order.totalInTax)}</h2>
+      <p class="right">税抜 ${yen(order.totalExTax)} / 消費税 ${yen(order.totalTax)}</p>
+      <p class="small">※店頭払い・受け取り時払い</p>
+
+      <script>
+        window.onload=function(){window.print();}
+      <\/script>
+    </body>
+    </html>
+  `);
+  w.document.close();
+}
+
+function generateQR(){
+  const url=`https://miki-crypto-star.github.io/SmartOrder/order.html?shop=${encodeURIComponent(shopCode)}`;
+  document.getElementById("qrUrl").innerText=url;
+  document.getElementById("qrImg").src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data="+encodeURIComponent(url);
 }
 
 function logout(){
   sessionStorage.removeItem("smartOrderShopCode");
   sessionStorage.removeItem("smartOrderLoggedIn");
-  location.href = "index.html";
+  location.href="index.html";
 }
 
 loadShop();
