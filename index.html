@@ -44,7 +44,7 @@ h1{
 
 .logo{
   text-align:center;
-  font-size:32px;
+  font-size:34px;
   font-weight:bold;
   margin-bottom:6px;
 }
@@ -83,11 +83,9 @@ button{
   cursor:pointer;
 }
 
-.small{
-  font-size:13px;
-  color:#666;
-  margin-top:16px;
-  line-height:1.7;
+button.green{
+  background:#16a34a;
+  margin-top:10px;
 }
 
 .error{
@@ -100,6 +98,13 @@ button{
   color:#16a34a;
   font-weight:bold;
   margin-top:12px;
+}
+
+.small{
+  font-size:13px;
+  color:#666;
+  margin-top:16px;
+  line-height:1.7;
 }
 </style>
 </head>
@@ -114,7 +119,7 @@ button{
   <div class="card">
 
     <div class="logo">SmartOrder</div>
-    <div class="sub">店舗管理ログイン</div>
+    <div class="sub">店舗ログイン</div>
 
     <label>お店コード</label>
     <input id="shopCode" value="demo" placeholder="例：demo">
@@ -122,13 +127,16 @@ button{
     <label>管理パスワード</label>
     <input id="adminPass" type="password" value="1234" placeholder="管理パスワード">
 
-    <button onclick="login()">キッチン画面を開く</button>
+    <button onclick="loginKitchen()">注文専用画面を開く</button>
+
+    <button class="green" onclick="loginAdmin()">管理画面を開く</button>
 
     <div id="message"></div>
 
     <div class="small">
-      店舗ごとに shopCode と管理パスワードを分けます。<br>
-      お客様注文画面はQRから開くため、管理パスワードは不要です。
+      ・厨房では「注文専用画面」を使用します。<br>
+      ・メニュー編集、QR発行、売上集計は「管理画面」で行います。<br>
+      ・お客様注文画面はQRから開くため、管理パスワードは不要です。
     </div>
 
   </div>
@@ -142,29 +150,48 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+let loginTarget = "kitchen";
+
 function showMessage(text, type){
   const box = document.getElementById("message");
   box.className = type;
   box.innerText = text;
 }
 
-function login(){
+function getInput(){
   const shopCode = document.getElementById("shopCode").value.trim();
-  const inputPass = document.getElementById("adminPass").value.trim();
+  const adminPass = document.getElementById("adminPass").value.trim();
 
   if(!shopCode){
     showMessage("お店コードを入力してください。", "error");
-    return;
+    return null;
   }
 
-  if(!inputPass){
+  if(!adminPass){
     showMessage("管理パスワードを入力してください。", "error");
-    return;
+    return null;
   }
+
+  return { shopCode, adminPass };
+}
+
+function loginKitchen(){
+  loginTarget = "kitchen";
+  login();
+}
+
+function loginAdmin(){
+  loginTarget = "admin";
+  login();
+}
+
+function login(){
+  const input = getInput();
+  if(!input) return;
 
   showMessage("確認中...", "success");
 
-  db.ref("shops/" + shopCode + "/settings").get()
+  db.ref("shops/" + input.shopCode + "/settings").get()
     .then(snapshot => {
       if(!snapshot.exists()){
         showMessage("このお店コードは存在しません。", "error");
@@ -172,17 +199,21 @@ function login(){
       }
 
       const settings = snapshot.val() || {};
-      const adminPass = String(settings.adminPass || "");
+      const savedPass = String(settings.adminPass || "");
 
-      if(inputPass !== adminPass){
+      if(input.adminPass !== savedPass){
         showMessage("管理パスワードが違います。", "error");
         return;
       }
 
-      sessionStorage.setItem("smartOrderShopCode", shopCode);
+      sessionStorage.setItem("smartOrderShopCode", input.shopCode);
       sessionStorage.setItem("smartOrderLoggedIn", "true");
 
-      location.href = "kitchen.html?shop=" + encodeURIComponent(shopCode);
+      if(loginTarget === "admin"){
+        location.href = "admin.html?shop=" + encodeURIComponent(input.shopCode);
+      }else{
+        location.href = "kitchen.html?shop=" + encodeURIComponent(input.shopCode);
+      }
     })
     .catch(error => {
       showMessage("Firebase接続エラー：" + error.message, "error");
