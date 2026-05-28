@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>SmartOrder Kitchen</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<style>
+
+body{
+    margin:0;
+    padding:0;
+    font-family:sans-serif;
+    background:#f3f4f6;
+}
+
+header{
+    background:#111827;
+    color:white;
+    padding:15px;
+    position:sticky;
+    top:0;
+    z-index:999;
+}
+
+h1{
+    margin:0;
+    font-size:22px;
+}
+
+.wrap{
+    padding:12px;
+    max-width:1200px;
+    margin:auto;
+}
+
+.card{
+    background:white;
+    border-radius:12px;
+    padding:12px;
+    margin-bottom:12px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.08);
+}
+
+.row{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+}
+
+input,
+select,
+button{
+    padding:10px;
+    border-radius:8px;
+    border:1px solid #ccc;
+    font-size:16px;
+    box-sizing:border-box;
+}
+
+button{
+    border:none;
+    background:#2563eb;
+    color:white;
+    font-weight:bold;
+}
+
+button.red{
+    background:#dc2626;
+}
+
+button.green{
+    background:#16a34a;
+}
+
+button.gray{
+    background:#6b7280;
+}
+
+button.orange{
+    background:#f97316;
+}
+
+.orderCard{
+    border-left:8px solid #2563eb;
+}
+
+.order-provided{
+    border-left-color:#16a34a;
+    opacity:0.85;
+}
+
+.order-paid{
+    border-left-color:#111827;
+    opacity:0.7;
+}
+
+.order-canceled{
+    border-left-color:#dc2626;
+    opacity:0.5;
+}
+
+.item{
+    border-radius:8px;
+    padding:8px;
+    margin-top:6px;
+    display:flex;
+    justify-content:space-between;
+}
+
+.drink{
+    background:#dbeafe;
+}
+
+.food{
+    background:#ffedd5;
+}
+
+.other{
+    background:#e5e7eb;
+}
+
+.badge{
+    display:inline-block;
+    padding:4px 8px;
+    border-radius:999px;
+    font-size:12px;
+    background:#e5e7eb;
+    margin-right:4px;
+}
+
+.total{
+    font-size:20px;
+    font-weight:bold;
+    text-align:right;
+    margin-top:10px;
+}
+
+.small{
+    font-size:13px;
+    color:#666;
+}
+
+.menuBox{
+    border:1px solid #ddd;
+    border-radius:10px;
+    padding:10px;
+}
+
+#qrImg{
+    width:220px;
+    max-width:100%;
+    margin-top:10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>SmartOrder Kitchen</h1>
+<div class="small">キッチン・店舗管理画面</div>
+</header>
+
+<div class="wrap">
+
+<div class="card">
+
+<h2>店舗設定</h2>
+
+<div class="row">
+<input id="shopCodeInput" value="demo" placeholder="shopCode">
+<button onclick="loadShop()">店舗読込</button>
+</div>
+
+<div id="shopInfo" class="small"></div>
+
+</div>
+
+<div class="card">
+
+<h2>お客様注文QR</h2>
+
+<button onclick="generateQR()">QRコード発行</button>
+
+<div id="qrUrl" class="small"></div>
+
+<img id="qrImg">
+
+</div>
+
+<div class="card">
+
+<h2>注文一覧</h2>
+
+<div class="row">
+<select id="filterStatus" onchange="renderOrders()">
+<option value="active">未完了のみ</option>
+<option value="all">すべて</option>
+<option value="new">new</option>
+<option value="provided">provided</option>
+<option value="paid">paid</option>
+<option value="canceled">canceled</option>
+</select>
+
+<button onclick="renderOrders()">更新</button>
+</div>
+
+<div id="orders"></div>
+
+</div>
+
+<div class="card">
+
+<h2>メニュー追加</h2>
+
+<div class="row">
+
+<input id="menuNumber" placeholder="番号">
+
+<input id="menuName" placeholder="商品名">
+
+<select id="menuCategory">
+<option value="drink">drink</option>
+<option value="food">food</option>
+<option value="other">other</option>
+</select>
+
+<input id="menuPrice" type="number" placeholder="税込価格">
+
+<button onclick="addMenu()">追加</button>
+
+</div>
+
+</div>
+
+<div class="card">
+
+<h2>メニュー一覧</h2>
+
+<div id="menuList"></div>
+
+</div>
+
+<div class="card">
+
+<h2>売上集計</h2>
+
+<div id="salesBox"></div>
+
+<button onclick="downloadCSV()">CSV出力</button>
+
+</div>
+
+</div>
+
+<script>
+
+const firebaseConfig = {
+  databaseURL: "https://smartorder-e65ab-default-rtdb.asia-southeast1.firebasedatabase.app/"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const db = firebase.database();
+
+let shopCode = "demo";
+
+let ordersData = {};
+
+let menuData = {};
+
+let settingsData = {};
+
+function yen(v){
+    return "¥" + Number(v || 0).toLocaleString();
+}
+
+function loadShop(){
+
+    shopCode = document.getElementById("shopCodeInput").value.trim();
+
+    db.ref("shops/" + shopCode + "/settings")
+    .on("value", snap => {
+
+        settingsData = snap.val() || {};
+
+        document.getElementById("shopInfo").innerHTML =
+        `
+        店舗名：${settingsData.shopName || ""}
+        /
+        税率：${settingsData.taxRate || 0.1}
+        /
+        テーブル数：${settingsData.tables || 0}
+        `;
+    });
+
+    db.ref("shops/" + shopCode + "/orders")
+    .on("value", snap => {
+
+        ordersData = snap.val() || {};
+
+        renderOrders();
+
+        renderSales();
+
+    });
+
+    db.ref("shops/" + shopCode + "/menu")
+    .on("value", snap => {
+
+        menuData = snap.val() || {};
+
+        renderMenu();
+
+    });
+
+}
+
+function renderOrders(){
+
+    const box = document.getElementById("orders");
+
+    box.innerHTML = "";
+
+    const filter = document.getElementById("filterStatus").value;
+
+    const arr = Object.entries(ordersData).sort((a,b)=>{
+        return (b[1].createdAt || 0) - (a[1].createdAt || 0);
+    });
+
+    if(arr.length === 0){
+        box.innerHTML = "<p>注文なし</p>";
+        return;
+    }
+
+    arr.forEach(([orderId, order]) => {
+
+        const status = order.status || "new";
+
+        if(filter === "active"){
+            if(status === "paid" || status === "canceled"){
+                return;
+            }
+        }
+
+        if(filter !== "active" && filter !== "all"){
+            if(status !== filter){
+                return;
+            }
+        }
+
+        const div = document.createElement("div");
+
+        div.className = "card orderCard order-" + status;
+
+        const items = order.items || {};
+
+        let itemsHtml = "";
+
+        Object.values(items).forEach(item => {
+
+            itemsHtml += `
+            <div class="item ${item.category || "other"}">
+
+                <div>
+                    <b>${item.menuNumber || ""} ${item.name || ""}</b>
+                    <br>
+                    数量：${item.qty || 0}
+                </div>
+
+                <div>
+                    ${yen(item.subtotalInTax)}
+                </div>
+
+            </div>
+            `;
+        });
+
+        div.innerHTML = `
+
+        <h3>
+            ${order.customerName || "名無し"}
+        </h3>
+
+        <div>
+
+            <span class="badge">
+            ${order.orderType || ""}
+            </span>
+
+            ${
+                order.tableNo ?
+                `<span class="badge">テーブル ${order.tableNo}</span>`
+                :
+                ""
+            }
+
+            <span class="badge">
+            ${status}
+            </span>
+
+        </div>
+
+        <div class="small">
+        ${new Date(order.createdAt || Date.now()).toLocaleString("ja-JP")}
+        </div>
+
+        ${itemsHtml}
+
+        <div class="total">
+            ${yen(order.totalInTax)}
+        </div>
+
+        <div class="row">
+
+            <button class="green"
+            onclick="setProvided('${orderId}')">
+            提供済み
+            </button>
+
+            <button class="gray"
+            onclick="setPaid('${orderId}')">
+            会計済み
+            </button>
+
+            <button class="red"
+            onclick="cancelOrder('${orderId}')">
+            キャンセル
+            </button>
+
+        </div>
+
+        `;
+
+        box.appendChild(div);
+
+    });
+
+}
+
+function setProvided(orderId){
+
+    db.ref("shops/" + shopCode + "/orders/" + orderId)
+    .update({
+        status:"provided"
+    });
+
+}
+
+function setPaid(orderId){
+
+    db.ref("shops/" + shopCode + "/orders/" + orderId)
+    .update({
+        status:"paid",
+        paid:true,
+        paidAt:Date.now()
+    });
+
+}
+
+function cancelOrder(orderId){
+
+    if(!confirm("キャンセルしますか？")){
+        return;
+    }
+
+    db.ref("shops/" + shopCode + "/orders/" + orderId)
+    .update({
+        status:"canceled"
+    });
+
+}
+
+function renderMenu(){
+
+    const box = document.getElementById("menuList");
+
+    box.innerHTML = "";
+
+    Object.entries(menuData).forEach(([menuId, menu]) => {
+
+        const div = document.createElement("div");
+
+        div.className = "menuBox";
+
+        div.innerHTML = `
+
+        <b>${menu.number}</b>
+
+        <br><br>
+
+        ${menu.name}
+
+        <br><br>
+
+        カテゴリ：${menu.category}
+
+        <br><br>
+
+        価格：${yen(menu.priceInTax)}
+
+        <br><br>
+
+        表示：
+        ${menu.visible ? "ON" : "OFF"}
+
+        <br>
+
+        売切：
+        ${menu.soldOut ? "ON" : "OFF"}
+
+        <br><br>
+
+        <div class="row">
+
+            <button onclick="toggleVisible('${menuId}', ${menu.visible})">
+            表示切替
+            </button>
+
+            <button class="orange"
+            onclick="toggleSoldOut('${menuId}', ${menu.soldOut})">
+            売切切替
+            </button>
+
+        </div>
+
+        `;
+
+        box.appendChild(div);
+
+    });
+
+}
+
+function toggleVisible(menuId, current){
+
+    db.ref("shops/" + shopCode + "/menu/" + menuId)
+    .update({
+        visible: !current
+    });
+
+}
+
+function toggleSoldOut(menuId, current){
+
+    db.ref("shops/" + shopCode + "/menu/" + menuId)
+    .update({
+        soldOut: !current
+    });
+
+}
+
+function addMenu(){
+
+    const number = document.getElementById("menuNumber").value.trim();
+
+    const name = document.getElementById("menuName").value.trim();
+
+    const category = document.getElementById("menuCategory").value;
+
+    const priceInTax = Number(document.getElementById("menuPrice").value || 0);
+
+    if(!number || !name || !priceInTax){
+        alert("入力不足");
+        return;
+    }
+
+    const taxRate = Number(settingsData.taxRate || 0.1);
+
+    const priceExTax = Math.floor(priceInTax / (1 + taxRate));
+
+    const menuId = number.toLowerCase();
+
+    db.ref("shops/" + shopCode + "/menu/" + menuId)
+    .set({
+        number:number,
+        name:name,
+        category:category,
+        categoryLabel:category,
+        priceExTax:priceExTax,
+        priceInTax:priceInTax,
+        visible:true,
+        soldOut:false
+    });
+
+    document.getElementById("menuNumber").value = "";
+    document.getElementById("menuName").value = "";
+    document.getElementById("menuPrice").value = "";
+
+}
+
+function renderSales(){
+
+    let total = 0;
+
+    let paid = 0;
+
+    let canceled = 0;
+
+    Object.values(ordersData).forEach(order => {
+
+        const amount = Number(order.totalInTax || 0);
+
+        total += amount;
+
+        if(order.status === "paid"){
+            paid += amount;
+        }
+
+        if(order.status === "canceled"){
+            canceled += amount;
+        }
+
+    });
+
+    document.getElementById("salesBox").innerHTML = `
+
+    総売上：
+    ${yen(total)}
+
+    <br><br>
+
+    会計済：
+    ${yen(paid)}
+
+    <br><br>
+
+    キャンセル：
+    ${yen(canceled)}
+
+    `;
+
+}
+
+function downloadCSV(){
+
+    let csv =
+    "日時,名前,注文種別,テーブル,状態,合計\n";
+
+    Object.values(ordersData).forEach(order => {
+
+        csv +=
+        `"${new Date(order.createdAt || 0).toLocaleString("ja-JP")}","${order.customerName || ""}","${order.orderType || ""}","${order.tableNo || ""}","${order.status || ""}","${order.totalInTax || 0}"\n`;
+
+    });
+
+    const blob = new Blob([csv], {type:"text/csv"});
+
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+
+    a.href = url;
+
+    a.download = "sales.csv";
+
+    a.click();
+
+}
+
+function generateQR(){
+
+    const url =
+    `https://miki-crypto-star.github.io/SmartOrder/order.html?shop=${shopCode}`;
+
+    document.getElementById("qrUrl").innerText = url;
+
+    document.getElementById("qrImg").src =
+    "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data="
+    + encodeURIComponent(url);
+
+}
+
+loadShop();
+
+</script>
+
+</body>
+</html>
