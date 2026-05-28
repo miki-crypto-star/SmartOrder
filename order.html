@@ -10,30 +10,154 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <style>
-body{margin:0;font-family:sans-serif;background:#f3f4f6;color:#111827;}
-header{background:#111827;color:white;padding:14px;position:sticky;top:0;z-index:10;}
-h1{margin:0;font-size:22px;}
-.wrap{padding:12px;max-width:900px;margin:auto;}
-.card{background:white;border-radius:12px;padding:12px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.08);}
-.row{display:flex;gap:8px;flex-wrap:wrap;}
-input,select,button{padding:11px;border-radius:8px;border:1px solid #ccc;font-size:16px;box-sizing:border-box;}
-input,select{flex:1;min-width:140px;}
-button{border:none;background:#2563eb;color:white;font-weight:bold;cursor:pointer;}
-button.red{background:#dc2626;}
-button.green{background:#16a34a;}
-button.gray{background:#6b7280;}
-.small{font-size:13px;color:#666;}
-.badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;background:#e5e7eb;margin:2px;}
-.menuItem{border-radius:10px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;gap:8px;align-items:center;}
-.drink{background:#dbeafe;}
-.food{background:#ffedd5;}
-.other{background:#e5e7eb;}
-.cartItem{border-bottom:1px solid #e5e7eb;padding:10px 0;}
-.qtyBox{display:flex;gap:6px;align-items:center;margin-top:8px;}
-.qtyBox button{width:42px;padding:8px;}
-.total{text-align:right;font-size:20px;font-weight:bold;margin-top:10px;}
-.hidden{display:none;}
-.notice{background:#fff7ed;border-left:6px solid #f97316;padding:10px;border-radius:8px;margin-bottom:12px;}
+body{
+  margin:0;
+  font-family:sans-serif;
+  background:#f3f4f6;
+  color:#111827;
+}
+
+header{
+  background:#111827;
+  color:white;
+  padding:14px;
+  position:sticky;
+  top:0;
+  z-index:10;
+}
+
+h1{
+  margin:0;
+  font-size:22px;
+}
+
+.wrap{
+  padding:12px;
+  max-width:900px;
+  margin:auto;
+}
+
+.card{
+  background:white;
+  border-radius:14px;
+  padding:14px;
+  margin-bottom:12px;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);
+}
+
+.row{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+input,
+select,
+button{
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #ccc;
+  font-size:16px;
+  box-sizing:border-box;
+}
+
+input,
+select{
+  flex:1;
+  min-width:140px;
+}
+
+button{
+  border:none;
+  background:#2563eb;
+  color:white;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+button.green{
+  background:#16a34a;
+}
+
+button.red{
+  background:#dc2626;
+}
+
+button.gray{
+  background:#6b7280;
+}
+
+.small{
+  font-size:13px;
+  color:#666;
+}
+
+.badge{
+  display:inline-block;
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:12px;
+  background:#e5e7eb;
+  margin:2px;
+}
+
+.menuItem{
+  border-radius:12px;
+  padding:12px;
+  margin-bottom:8px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+}
+
+.drink{
+  background:#dbeafe;
+}
+
+.food{
+  background:#ffedd5;
+}
+
+.other{
+  background:#e5e7eb;
+}
+
+.cartItem{
+  border-bottom:1px solid #e5e7eb;
+  padding:10px 0;
+}
+
+.qtyBox{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  margin-top:8px;
+}
+
+.qtyBox button{
+  width:42px;
+  padding:8px;
+}
+
+.total{
+  text-align:right;
+  font-size:20px;
+  font-weight:bold;
+  margin-top:10px;
+}
+
+.notice{
+  background:#fff7ed;
+  border-left:6px solid #f97316;
+  padding:10px;
+  border-radius:10px;
+  margin-bottom:12px;
+}
+
+.hidden{
+  display:none;
+}
 </style>
 </head>
 
@@ -46,80 +170,126 @@ button.gray{background:#6b7280;}
 
 <div class="wrap">
 
-  <div class="notice">
-    お支払いは店頭払い・受け取り時払いです。注文確定後、店舗側にリアルタイムで送信されます。
+<div class="notice">
+  店頭払い・受け取り時払いです。注文後、店舗側へリアルタイム送信されます。
+</div>
+
+<div class="card">
+
+  <h2>ご注文情報</h2>
+
+  <div class="row">
+
+    <select id="orderType" onchange="toggleTable()">
+      <option value="takeout">テイクアウト</option>
+      <option value="eatIn">イートイン</option>
+    </select>
+
+    <select id="tableNo" class="hidden">
+      <option value="">テーブル番号</option>
+    </select>
+
   </div>
 
-  <div class="card">
-    <h2>ご注文情報</h2>
+  <br>
 
-    <div class="row">
-      <select id="orderType" onchange="toggleTable()">
-        <option value="takeout">テイクアウト</option>
-        <option value="eatIn">イートイン</option>
-      </select>
+  <input id="customerName" placeholder="お名前・ニックネーム">
 
-      <select id="tableNo" class="hidden">
-        <option value="">テーブル番号</option>
-      </select>
-    </div>
+</div>
 
-    <br>
+<div class="card">
 
-    <input id="customerName" placeholder="お名前・ニックネーム">
-  </div>
+  <h2>メニュー検索</h2>
 
-  <div class="card">
-    <h2>メニュー検索</h2>
+  <div class="row">
 
-    <div class="row">
-      <select id="categoryFilter" onchange="renderMenu()">
-        <option value="all">すべて</option>
-        <option value="drink">ドリンク</option>
-        <option value="food">フード</option>
-        <option value="other">その他</option>
-      </select>
+    <select id="categoryFilter" onchange="renderMenu()">
+      <option value="all">すべて</option>
+      <option value="drink">ドリンク</option>
+      <option value="food">フード</option>
+      <option value="other">その他</option>
+    </select>
 
-      <input id="searchText" placeholder="番号・商品名で検索" oninput="renderMenu()">
-    </div>
-  </div>
+    <input
+      id="searchText"
+      placeholder="番号・商品名検索"
+      oninput="renderMenu()"
+    >
 
-  <div class="card">
-    <h2>メニュー</h2>
-    <div id="menuList">読み込み中...</div>
-  </div>
-
-  <div class="card">
-    <h2>買い物カゴ</h2>
-    <div id="cartList">カゴは空です。</div>
-    <div class="total" id="cartTotal">合計 ¥0</div>
-    <br>
-    <button class="green" onclick="submitOrder()">注文を確定する</button>
   </div>
 
 </div>
 
+<div class="card">
+
+  <h2>メニュー</h2>
+
+  <div id="menuList">
+    読み込み中...
+  </div>
+
+</div>
+
+<div class="card">
+
+  <h2>買い物カゴ</h2>
+
+  <div id="cartList">
+    カゴは空です
+  </div>
+
+  <div class="total" id="cartTotal">
+    合計 ¥0
+  </div>
+
+  <br>
+
+  <button class="green" onclick="submitOrder()">
+    注文を確定する
+  </button>
+
+</div>
+
+</div>
+
 <script>
+
 const firebaseConfig = {
   databaseURL: "https://smartorder-e65ab-default-rtdb.asia-southeast1.firebasedatabase.app/"
 };
 
 firebase.initializeApp(firebaseConfig);
+
 const db = firebase.database();
 
-const params = new URLSearchParams(location.search);
-let shopCode = params.get("shop") || "";
+const params =
+new URLSearchParams(location.search);
+
+let shopCode =
+params.get("shop") || "";
 
 let settingsData = {};
 let menuData = {};
 let cart = {};
 
 if(!shopCode){
-  document.body.innerHTML = "<div style='padding:20px;'>店舗コードがありません。QRコードから開いてください。</div>";
+  document.body.innerHTML =
+  "<div style='padding:20px;'>QRコードから開いてください。</div>";
 }
 
 function yen(v){
   return "¥" + Number(v || 0).toLocaleString();
+}
+
+function esc(v){
+  return String(v ?? "")
+  .replace(/[&<>"']/g, s => ({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#39;"
+  }[s]));
 }
 
 function categoryLabel(cat){
@@ -129,135 +299,238 @@ function categoryLabel(cat){
 }
 
 function loadShop(){
-  db.ref("shops/" + shopCode + "/settings").on("value", snap => {
+
+  db.ref("shops/" + shopCode + "/settings")
+  .on("value", snap => {
+
     if(!snap.exists()){
-      document.body.innerHTML = "<div style='padding:20px;'>この店舗は存在しません。</div>";
+
+      document.body.innerHTML =
+      "<div style='padding:20px;'>店舗が存在しません。</div>";
+
       return;
+
     }
 
     settingsData = snap.val() || {};
+
     document.getElementById("shopName").innerText =
       settingsData.shopName || "SmartOrder";
 
     renderTables();
+
   });
 
-  db.ref("shops/" + shopCode + "/menu").on("value", snap => {
+  db.ref("shops/" + shopCode + "/menu")
+  .on("value", snap => {
+
     menuData = snap.val() || {};
+
     renderMenu();
+
   });
+
 }
 
 function renderTables(){
-  const tableSelect = document.getElementById("tableNo");
-  tableSelect.innerHTML = `<option value="">テーブル番号</option>`;
 
-  const count = Number(settingsData.tables || 0);
+  const table =
+  document.getElementById("tableNo");
 
-  for(let i = 1; i <= count; i++){
-    const op = document.createElement("option");
+  table.innerHTML =
+  `<option value="">テーブル番号</option>`;
+
+  const count =
+  Number(settingsData.tables || 0);
+
+  for(let i=1;i<=count;i++){
+
+    const op =
+    document.createElement("option");
+
     op.value = String(i);
-    op.textContent = i + "番テーブル";
-    tableSelect.appendChild(op);
+
+    op.textContent =
+    i + "番テーブル";
+
+    table.appendChild(op);
+
   }
+
 }
 
 function toggleTable(){
-  const type = document.getElementById("orderType").value;
-  const table = document.getElementById("tableNo");
+
+  const type =
+  document.getElementById("orderType").value;
+
+  const table =
+  document.getElementById("tableNo");
 
   if(type === "eatIn"){
+
     table.classList.remove("hidden");
+
   }else{
+
     table.classList.add("hidden");
+
     table.value = "";
+
   }
+
 }
 
 function renderMenu(){
-  const box = document.getElementById("menuList");
-  const category = document.getElementById("categoryFilter").value;
-  const search = document.getElementById("searchText").value.trim().toLowerCase();
+
+  const box =
+  document.getElementById("menuList");
+
+  const category =
+  document.getElementById("categoryFilter").value;
+
+  const search =
+  document.getElementById("searchText")
+  .value
+  .trim()
+  .toLowerCase();
 
   box.innerHTML = "";
 
-  const list = Object.entries(menuData).sort((a,b)=>{
-    return String(a[1].number || "").localeCompare(String(b[1].number || ""));
-  });
+  const list =
+  Object.entries(menuData)
+  .sort((a,b)=>
+    String(a[1].number || "")
+    .localeCompare(String(b[1].number || ""))
+  );
 
   list.forEach(([menuId, menu]) => {
+
     if(menu.visible === false) return;
+
     if(category !== "all" && menu.category !== category) return;
 
-    const keyword = `${menu.number || ""} ${menu.name || ""}`.toLowerCase();
+    const keyword =
+    `${menu.number || ""} ${menu.name || ""}`
+    .toLowerCase();
+
     if(search && !keyword.includes(search)) return;
 
-    const div = document.createElement("div");
-    div.className = "menuItem " + (menu.category || "other");
+    const div =
+    document.createElement("div");
+
+    div.className =
+    "menuItem " + (menu.category || "other");
 
     div.innerHTML = `
+
       <div>
-        <b>${menu.number || ""} ${menu.name || ""}</b><br>
-        <span class="badge">${categoryLabel(menu.category)}</span>
-        ${menu.soldOut ? `<span class="badge">売り切れ</span>` : ""}
-        <div class="small">税込 ${yen(menu.priceInTax)} / 税抜 ${yen(menu.priceExTax)}</div>
+
+        <b>
+          ${esc(menu.number || "")}
+          ${esc(menu.name || "")}
+        </b>
+
+        <br>
+
+        <span class="badge">
+          ${categoryLabel(menu.category)}
+        </span>
+
+        ${
+          menu.soldOut
+          ? `<span class="badge">売切</span>`
+          : ``
+        }
+
+        <div class="small">
+          税込 ${yen(menu.priceInTax)}
+          /
+          税抜 ${yen(menu.priceExTax)}
+        </div>
+
       </div>
+
       <div>
+
         ${
           menu.soldOut
           ? `<button class="gray" disabled>売切</button>`
           : `<button onclick="addToCart('${menuId}')">追加</button>`
         }
+
       </div>
+
     `;
 
     box.appendChild(div);
+
   });
 
   if(box.innerHTML === ""){
-    box.innerHTML = "<p>表示できるメニューがありません。</p>";
+    box.innerHTML =
+    "<p>表示メニューなし</p>";
   }
+
 }
 
 function addToCart(menuId){
-  const menu = menuData[menuId];
+
+  const menu =
+  menuData[menuId];
+
   if(!menu || menu.soldOut) return;
 
   if(!cart[menuId]){
+
     cart[menuId] = {
-      menuId: menuId,
-      menuNumber: menu.number || "",
-      name: menu.name || "",
-      category: menu.category || "other",
-      priceExTax: Number(menu.priceExTax || 0),
-      priceInTax: Number(menu.priceInTax || 0),
-      qty: 0
+
+      menuId:menuId,
+      menuNumber:menu.number || "",
+      name:menu.name || "",
+      category:menu.category || "other",
+      priceExTax:Number(menu.priceExTax || 0),
+      priceInTax:Number(menu.priceInTax || 0),
+      qty:0
+
     };
+
   }
 
   cart[menuId].qty += 1;
+
   renderCart();
+
 }
 
 function changeQty(menuId, diff){
+
   if(!cart[menuId]) return;
 
   cart[menuId].qty += diff;
 
   if(cart[menuId].qty <= 0){
+
     delete cart[menuId];
+
   }
 
   renderCart();
+
 }
 
 function removeCart(menuId){
+
   delete cart[menuId];
+
   renderCart();
+
 }
 
 function calcCart(){
-  const taxRate = Number(settingsData.taxRate || 0.1);
+
+  const taxRate =
+  Number(settingsData.taxRate || 0.1);
 
   let totalExTax = 0;
   let totalTax = 0;
@@ -266,135 +539,245 @@ function calcCart(){
   const items = {};
 
   Object.entries(cart).forEach(([menuId, item]) => {
-    const qty = Number(item.qty || 0);
-    const priceInTax = Number(item.priceInTax || 0);
-    const priceExTax = Number(item.priceExTax || Math.floor(priceInTax / (1 + taxRate)));
-    const tax = priceInTax - priceExTax;
 
-    const subtotalExTax = priceExTax * qty;
-    const subtotalTax = tax * qty;
-    const subtotalInTax = priceInTax * qty;
+    const qty =
+    Number(item.qty || 0);
+
+    const priceInTax =
+    Number(item.priceInTax || 0);
+
+    const priceExTax =
+    Number(item.priceExTax || 0);
+
+    const tax =
+    priceInTax - priceExTax;
+
+    const subtotalExTax =
+    priceExTax * qty;
+
+    const subtotalTax =
+    tax * qty;
+
+    const subtotalInTax =
+    priceInTax * qty;
 
     totalExTax += subtotalExTax;
     totalTax += subtotalTax;
     totalInTax += subtotalInTax;
 
     items[menuId] = {
-      menuId: menuId,
-      menuNumber: item.menuNumber,
-      name: item.name,
-      category: item.category,
-      qty: qty,
-      priceExTax: priceExTax,
-      tax: tax,
-      priceInTax: priceInTax,
-      subtotalExTax: subtotalExTax,
-      subtotalTax: subtotalTax,
-      subtotalInTax: subtotalInTax,
-      status: "new"
+
+      menuId:menuId,
+      menuNumber:item.menuNumber,
+      name:item.name,
+      category:item.category,
+
+      qty:qty,
+
+      priceExTax:priceExTax,
+      tax:tax,
+      priceInTax:priceInTax,
+
+      subtotalExTax:subtotalExTax,
+      subtotalTax:subtotalTax,
+      subtotalInTax:subtotalInTax,
+
+      status:"new",
+
+      done:false
+
     };
+
   });
 
-  return {items,totalExTax,totalTax,totalInTax};
+  return {
+    items,
+    totalExTax,
+    totalTax,
+    totalInTax
+  };
+
 }
 
 function renderCart(){
-  const box = document.getElementById("cartList");
-  const totalBox = document.getElementById("cartTotal");
 
-  const result = calcCart();
-  const entries = Object.entries(cart);
+  const box =
+  document.getElementById("cartList");
+
+  const totalBox =
+  document.getElementById("cartTotal");
+
+  const result =
+  calcCart();
+
+  const entries =
+  Object.entries(cart);
 
   if(entries.length === 0){
-    box.innerHTML = "カゴは空です。";
-    totalBox.innerText = "合計 ¥0";
+
+    box.innerHTML =
+    "カゴは空です";
+
+    totalBox.innerText =
+    "合計 ¥0";
+
     return;
+
   }
 
   box.innerHTML = "";
 
   entries.forEach(([menuId, item]) => {
-    const div = document.createElement("div");
-    div.className = "cartItem";
+
+    const div =
+    document.createElement("div");
+
+    div.className =
+    "cartItem";
 
     div.innerHTML = `
-      <b>${item.menuNumber} ${item.name}</b><br>
-      <span class="small">税込単価 ${yen(item.priceInTax)}</span>
+
+      <b>
+        ${esc(item.menuNumber)}
+        ${esc(item.name)}
+      </b>
+
+      <br>
+
+      <span class="small">
+        税込単価 ${yen(item.priceInTax)}
+      </span>
 
       <div class="qtyBox">
-        <button onclick="changeQty('${menuId}', -1)">−</button>
+
+        <button onclick="changeQty('${menuId}', -1)">
+          −
+        </button>
+
         <b>${item.qty}</b>
-        <button onclick="changeQty('${menuId}', 1)">＋</button>
-        <button class="red" onclick="removeCart('${menuId}')">削除</button>
+
+        <button onclick="changeQty('${menuId}', 1)">
+          ＋
+        </button>
+
+        <button
+          class="red"
+          onclick="removeCart('${menuId}')"
+        >
+          削除
+        </button>
+
       </div>
+
     `;
 
     box.appendChild(div);
+
   });
 
   totalBox.innerText =
-    `合計 ${yen(result.totalInTax)} / 税抜 ${yen(result.totalExTax)} / 消費税 ${yen(result.totalTax)}`;
+  `合計 ${yen(result.totalInTax)}
+   / 税抜 ${yen(result.totalExTax)}
+   / 消費税 ${yen(result.totalTax)}`;
+
 }
 
 function submitOrder(){
-  const orderType = document.getElementById("orderType").value;
-  const tableNo = document.getElementById("tableNo").value;
-  const customerName = document.getElementById("customerName").value.trim();
+
+  const orderType =
+  document.getElementById("orderType").value;
+
+  const tableNo =
+  document.getElementById("tableNo").value;
+
+  const customerName =
+  document.getElementById("customerName")
+  .value
+  .trim();
 
   if(!customerName){
-    alert("お名前またはニックネームを入力してください。");
+
+    alert("お名前を入力してください");
+
     return;
+
   }
 
   if(orderType === "eatIn" && !tableNo){
-    alert("イートインの場合はテーブル番号を選択してください。");
+
+    alert("テーブル番号を選択してください");
+
     return;
+
   }
 
   if(Object.keys(cart).length === 0){
-    alert("商品をカゴに入れてください。");
+
+    alert("商品を選択してください");
+
     return;
+
   }
 
-  const result = calcCart();
+  const result =
+  calcCart();
 
   const order = {
-    orderType: orderType,
-    tableNo: orderType === "eatIn" ? tableNo : "",
-    customerName: customerName,
-    status: "new",
-    paid: false,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    paidAt: null,
-    providedAt: null,
-    canceledAt: null,
-    hideAt: null,
 
-    totalExTax: result.totalExTax,
-    totalTax: result.totalTax,
-    totalInTax: result.totalInTax,
+    orderType:orderType,
 
-    items: result.items
+    tableNo:
+      orderType === "eatIn"
+      ? tableNo
+      : "",
+
+    customerName:customerName,
+
+    status:"new",
+
+    paid:false,
+
+    createdAt:Date.now(),
+
+    updatedAt:Date.now(),
+
+    totalExTax:result.totalExTax,
+
+    totalTax:result.totalTax,
+
+    totalInTax:result.totalInTax,
+
+    items:result.items
+
   };
 
-  db.ref("shops/" + shopCode + "/orders").push(order)
-    .then(() => {
-      alert("注文を送信しました。");
+  db.ref("shops/" + shopCode + "/orders")
+  .push(order)
+  .then(()=>{
 
-      cart = {};
-      renderCart();
+    alert("注文を送信しました");
 
-      document.getElementById("customerName").value = "";
-    })
-    .catch(err => {
-      alert("注文送信に失敗しました：" + err.message);
-    });
+    cart = {};
+
+    renderCart();
+
+    document.getElementById("customerName").value = "";
+
+  })
+  .catch(err=>{
+
+    alert("送信失敗：" + err.message);
+
+  });
+
 }
 
 if(shopCode){
+
   loadShop();
+
 }
+
 </script>
 
 </body>
