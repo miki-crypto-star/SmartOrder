@@ -6,6 +6,9 @@
 
 <title>SmartOrder 店舗ログイン</title>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
 <style>
 body{
   margin:0;
@@ -35,8 +38,21 @@ h1{
 .card{
   background:white;
   border-radius:14px;
-  padding:20px;
+  padding:22px;
   box-shadow:0 2px 10px rgba(0,0,0,0.1);
+}
+
+.logo{
+  text-align:center;
+  font-size:32px;
+  font-weight:bold;
+  margin-bottom:6px;
+}
+
+.sub{
+  text-align:center;
+  color:#666;
+  margin-bottom:24px;
 }
 
 label{
@@ -56,7 +72,7 @@ button{
 
 input{
   border:1px solid #ccc;
-  margin-bottom:14px;
+  margin-bottom:16px;
 }
 
 button{
@@ -67,29 +83,23 @@ button{
   cursor:pointer;
 }
 
-button.green{
-  background:#16a34a;
-  margin-top:10px;
-}
-
 .small{
   font-size:13px;
   color:#666;
-  margin-top:12px;
-  line-height:1.6;
+  margin-top:16px;
+  line-height:1.7;
 }
 
-.logo{
-  font-size:34px;
+.error{
+  color:#dc2626;
   font-weight:bold;
-  text-align:center;
-  margin-bottom:8px;
+  margin-top:12px;
 }
 
-.sub{
-  text-align:center;
-  color:#666;
-  margin-bottom:24px;
+.success{
+  color:#16a34a;
+  font-weight:bold;
+  margin-top:12px;
 }
 </style>
 </head>
@@ -101,53 +111,82 @@ button.green{
 </header>
 
 <div class="wrap">
-
   <div class="card">
 
     <div class="logo">SmartOrder</div>
     <div class="sub">店舗管理ログイン</div>
 
-    <label for="shopCode">お店コード</label>
-    <input id="shopCode" placeholder="例：demo" value="demo">
+    <label>お店コード</label>
+    <input id="shopCode" value="demo" placeholder="例：demo">
 
-    <button onclick="openKitchen()">キッチン画面を開く</button>
+    <label>管理パスワード</label>
+    <input id="adminPass" type="password" value="1234" placeholder="管理パスワード">
 
-    <button class="green" onclick="openOrder()">お客様注文画面を開く</button>
+    <button onclick="login()">キッチン画面を開く</button>
+
+    <div id="message"></div>
 
     <div class="small">
-      ・通常、店舗側は「キッチン画面」を開きます。<br>
-      ・お客様用QR確認をしたい場合は「お客様注文画面」を開けます。<br>
-      ・本番では店舗ごとに shopCode を分けます。
+      店舗ごとに shopCode と管理パスワードを分けます。<br>
+      お客様注文画面はQRから開くため、管理パスワードは不要です。
     </div>
 
   </div>
-
 </div>
 
 <script>
-function getShopCode(){
-  const code = document.getElementById("shopCode").value.trim();
+const firebaseConfig = {
+  databaseURL: "https://smartorder-e65ab-default-rtdb.asia-southeast1.firebasedatabase.app/"
+};
 
-  if(!code){
-    alert("お店コードを入力してください。");
-    return null;
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+function showMessage(text, type){
+  const box = document.getElementById("message");
+  box.className = type;
+  box.innerText = text;
+}
+
+function login(){
+  const shopCode = document.getElementById("shopCode").value.trim();
+  const inputPass = document.getElementById("adminPass").value.trim();
+
+  if(!shopCode){
+    showMessage("お店コードを入力してください。", "error");
+    return;
   }
 
-  return code;
-}
+  if(!inputPass){
+    showMessage("管理パスワードを入力してください。", "error");
+    return;
+  }
 
-function openKitchen(){
-  const code = getShopCode();
-  if(!code) return;
+  showMessage("確認中...", "success");
 
-  location.href = "kitchen.html?shop=" + encodeURIComponent(code);
-}
+  db.ref("shops/" + shopCode + "/settings").get()
+    .then(snapshot => {
+      if(!snapshot.exists()){
+        showMessage("このお店コードは存在しません。", "error");
+        return;
+      }
 
-function openOrder(){
-  const code = getShopCode();
-  if(!code) return;
+      const settings = snapshot.val() || {};
+      const adminPass = String(settings.adminPass || "");
 
-  location.href = "order.html?shop=" + encodeURIComponent(code);
+      if(inputPass !== adminPass){
+        showMessage("管理パスワードが違います。", "error");
+        return;
+      }
+
+      sessionStorage.setItem("smartOrderShopCode", shopCode);
+      sessionStorage.setItem("smartOrderLoggedIn", "true");
+
+      location.href = "kitchen.html?shop=" + encodeURIComponent(shopCode);
+    })
+    .catch(error => {
+      showMessage("Firebase接続エラー：" + error.message, "error");
+    });
 }
 </script>
 
