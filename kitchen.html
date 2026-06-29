@@ -20,11 +20,14 @@ button.green{background:#16a34a;}
 button.red{background:#dc2626;}
 button.gray{background:#6b7280;}
 button.black{background:#111827;}
+button.orange{background:#f97316;}
 .small{font-size:13px;color:#666;}
 .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;background:#e5e7eb;margin:2px;}
 .orderCard{border-left:8px solid #2563eb;}
-.order-paid{border-left-color:#16a34a;background:#ecfdf5;}
+.order-paid{border-left-color:#16a34a;background:#dcfce7;}
 .order-ready{border-left-color:#f97316;background:#fff7ed;}
+.order-provided-wait{border-left-color:#6b7280;background:#f9fafb;opacity:.82;}
+.order-canceled-wait{border-left-color:#dc2626;background:#fee2e2;opacity:.9;}
 .item{border-radius:10px;padding:12px;margin-top:8px;display:flex;justify-content:space-between;gap:8px;align-items:center;cursor:pointer;border:2px solid transparent;}
 .item.done{border-color:#16a34a;opacity:.75;}
 .drink{background:#dbeafe;}
@@ -32,8 +35,10 @@ button.black{background:#111827;}
 .other{background:#e5e7eb;}
 .check{font-size:24px;font-weight:bold;color:#16a34a;}
 .total{text-align:right;font-size:20px;font-weight:bold;margin-top:10px;}
-.notice{padding:10px;border-radius:10px;background:#fef3c7;margin-bottom:10px;}
+.notice{padding:10px;border-radius:10px;background:#fef3c7;margin-bottom:10px;line-height:1.6;}
+.alarmBox{padding:12px;border-radius:10px;background:#dbeafe;margin-bottom:10px;font-weight:bold;display:none;}
 .topnav{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+.progress{font-weight:bold;margin-top:8px;color:#111827;}
 </style>
 </head>
 
@@ -43,14 +48,22 @@ button.black{background:#111827;}
   <h1>SmartOrder Kitchen</h1>
   <div id="shopInfo" class="small">読み込み中...</div>
   <div class="topnav">
+    <button class="orange" onclick="enableAlarm()">アラームON</button>
     <button class="gray" onclick="openAdmin()">管理画面</button>
     <button class="black" onclick="logout()">ログアウト</button>
   </div>
 </header>
 
 <div class="wrap">
+
+  <div id="alarmBox" class="alarmBox">
+    🔔 新規注文が入りました
+  </div>
+
   <div class="notice">
-    注文ごとに「お会計済み」。メニューをタップすると完成チェック。全メニューに✅が付くと「提供済み」ボタンが表示されます。
+    注文順は固定です。古い注文が上、新しい注文が下に表示されます。<br>
+    注文ごとに「お会計済み」。メニューをタップすると完成✅。全メニュー完成で「提供済み」ボタンが表示されます。<br>
+    提供済み・キャンセルは5秒表示後に一覧から消えます。
   </div>
 
   <div id="orders">注文を読み込み中...</div>
@@ -69,6 +82,10 @@ let shopCode = params.get("shop") || sessionStorage.getItem("smartOrderShopCode"
 
 let settingsData = {};
 let ordersData = {};
+let knownOrderIds = new Set();
+let firstLoad = true;
+let alarmEnabled = false;
+let audioCtx = null;
 
 if(!shopCode || sessionStorage.getItem("smartOrderLoggedIn") !== "true"){
   location.href = "index.html";
@@ -94,6 +111,48 @@ function categoryLabel(cat){
   return "その他";
 }
 
+function enableAlarm(){
+  alarmEnabled = true;
+
+  try{
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    playBeep();
+    alert("アラームをONにしました。");
+  }catch(e){
+    alert("この端末では音が鳴らない可能性があります。");
+  }
+}
+
+function playBeep(){
+  if(!alarmEnabled || !audioCtx) return;
+
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+
+  osc.type = "sine";
+  osc.frequency.value = 880;
+
+  gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.25, audioCtx.currentTime + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.38);
+}
+
+function showAlarm(){
+  const box = document.getElementById("alarmBox");
+  box.style.display = "block";
+  playBeep();
+
+  setTimeout(() => {
+    box.style.display = "none";
+  }, 5000);
+}
+
 function loadShop(){
   db.ref("shops/" + shopCode + "/settings").on("value", snap => {
     settingsData = snap.val() || {};
@@ -102,7 +161,21 @@ function loadShop(){
   });
 
   db.ref("shops/" + shopCode + "/orders").on("value", snap => {
-    ordersData = snap.val() || {};
+    const newData = snap.val() || {};
+    const currentIds = Object.keys(newData);
+
+    if(firstLoad){
+      knownOrderIds = new Set(currentIds);
+      firstLoad = false;
+    }else{
+      const hasNewOrder = currentIds.some(id => !knownOrderIds.has(id));
+      if(hasNewOrder){
+        showAlarm();
+      }
+      knownOrderIds = new Set(currentIds);
+    }
+
+    ordersData = newData;
     renderOrders();
   });
 }
@@ -111,12 +184,20 @@ function renderOrders(){
   const box = document.getElementById("orders");
   box.innerHTML = "";
 
+  const now = Date.now();
+
   const list = Object.entries(ordersData)
     .filter(([id, order]) => {
       const status = order.status || "new";
-      return status !== "provided" && status !== "canceled";
+      const hideAt = Number(order.hideAt || 0);
+
+      if((status === "provided" || status === "canceled") && hideAt && now >= hideAt){
+        return false;
+      }
+
+      return true;
     })
-    .sort((a,b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
+    .sort((a,b) => (a[1].createdAt || 0) - (b[1].createdAt || 0));
 
   if(list.length === 0){
     box.innerHTML = "<div class='card'>表示中の注文はありません。</div>";
@@ -124,9 +205,12 @@ function renderOrders(){
   }
 
   list.forEach(([orderId, order]) => {
+    const status = order.status || "new";
     const items = order.items || {};
     const itemEntries = Object.entries(items);
-    const allDone = itemEntries.length > 0 && itemEntries.every(([itemId, item]) => item.done === true);
+    const doneCount = itemEntries.filter(([itemId, item]) => item.done === true).length;
+    const totalCount = itemEntries.length;
+    const allDone = totalCount > 0 && doneCount === totalCount;
     const paid = order.paid === true;
 
     let itemsHtml = "";
@@ -152,28 +236,23 @@ function renderOrders(){
     const createdText = order.createdAt ? new Date(order.createdAt).toLocaleString("ja-JP") : "-";
 
     const div = document.createElement("div");
-    div.className = "card orderCard " + (allDone ? "order-ready " : "") + (paid ? "order-paid" : "");
 
-    div.innerHTML = `
-      <h2>${esc(order.customerName || "名無し")}</h2>
+    let className = "card orderCard ";
+    if(status === "provided") className += "order-provided-wait ";
+    else if(status === "canceled") className += "order-canceled-wait ";
+    else if(allDone) className += "order-ready ";
+    if(paid) className += "order-paid ";
 
-      <div>
-        <span class="badge">${orderTypeLabel}</span>
-        ${order.tableNo ? `<span class="badge">テーブル ${esc(order.tableNo)}</span>` : ""}
-        <span class="badge">${paid ? "お会計済み" : "未会計"}</span>
-        ${allDone ? `<span class="badge">全メニュー完成</span>` : ""}
-      </div>
+    div.className = className;
 
-      <div class="small">${createdText}</div>
+    let actionHtml = "";
 
-      ${itemsHtml}
-
-      <div class="total">
-        税込 ${yen(order.totalInTax)}<br>
-        <span class="small">税抜 ${yen(order.totalExTax)} / 消費税 ${yen(order.totalTax)}</span>
-      </div>
-
-      <div class="row" style="margin-top:12px;">
+    if(status === "provided"){
+      actionHtml = `<span class="small">提供済み：5秒後に一覧から消えます</span>`;
+    }else if(status === "canceled"){
+      actionHtml = `<span class="small">キャンセル済み：5秒後に一覧から消えます</span>`;
+    }else{
+      actionHtml = `
         ${
           paid
           ? `<button class="green" onclick="setUnpaid('${orderId}')">お会計済み ✅</button>`
@@ -188,6 +267,36 @@ function renderOrders(){
 
         <button class="red" onclick="cancelOrder('${orderId}')">キャンセル</button>
         <button class="black" onclick="printReceipt('${orderId}')">領収書PDF</button>
+      `;
+    }
+
+    div.innerHTML = `
+      <h2>${esc(order.customerName || "名無し")}</h2>
+
+      <div>
+        <span class="badge">${orderTypeLabel}</span>
+        ${order.tableNo ? `<span class="badge">テーブル ${esc(order.tableNo)}</span>` : ""}
+        <span class="badge">${paid ? "お会計済み" : "未会計"}</span>
+        ${allDone ? `<span class="badge">全メニュー完成</span>` : ""}
+        ${status === "provided" ? `<span class="badge">提供済み</span>` : ""}
+        ${status === "canceled" ? `<span class="badge">キャンセル</span>` : ""}
+      </div>
+
+      <div class="small">${createdText}</div>
+
+      <div class="progress">
+        完成 ${doneCount} / ${totalCount}
+      </div>
+
+      ${itemsHtml}
+
+      <div class="total">
+        税込 ${yen(order.totalInTax)}<br>
+        <span class="small">税抜 ${yen(order.totalExTax)} / 消費税 ${yen(order.totalTax)}</span>
+      </div>
+
+      <div class="row" style="margin-top:12px;">
+        ${actionHtml}
       </div>
     `;
 
@@ -214,42 +323,54 @@ function setUnpaid(orderId){
 }
 
 function toggleItemDone(orderId, itemId, current){
+  const done = !current;
+
   db.ref("shops/" + shopCode + "/orders/" + orderId + "/items/" + itemId).update({
-    done: !current,
-    doneAt: !current ? Date.now() : null
+    done: done,
+    doneAt: done ? Date.now() : null
   });
 }
 
 function setProvided(orderId){
-  if(!confirm("この注文を提供済みにして一覧から消しますか？")) return;
+  if(!confirm("この注文を提供済みにしますか？")) return;
+
+  const hideAt = Date.now() + 5000;
 
   db.ref("shops/" + shopCode + "/orders/" + orderId).update({
     status: "provided",
     providedAt: Date.now(),
-    hideAt: Date.now(),
+    hideAt: hideAt,
     updatedAt: Date.now()
   });
+
+  setTimeout(renderOrders, 5200);
 }
 
 function cancelOrder(orderId){
-  if(!confirm("この注文をキャンセルして一覧から消しますか？")) return;
+  if(!confirm("この注文をキャンセルしますか？")) return;
+
+  const hideAt = Date.now() + 5000;
 
   db.ref("shops/" + shopCode + "/orders/" + orderId).update({
     status: "canceled",
     canceledAt: Date.now(),
-    hideAt: Date.now(),
+    hideAt: hideAt,
     updatedAt: Date.now()
   });
+
+  setTimeout(renderOrders, 5200);
 }
 
 function printReceipt(orderId){
   const order = ordersData[orderId];
+
   if(!order){
     alert("注文データがありません。");
     return;
   }
 
   let itemsHtml = "";
+
   Object.values(order.items || {}).forEach(item => {
     itemsHtml += `
       <tr>
@@ -262,6 +383,7 @@ function printReceipt(orderId){
   });
 
   const w = window.open("", "_blank");
+
   w.document.write(`
     <html>
     <head>
@@ -297,6 +419,7 @@ function printReceipt(orderId){
     </body>
     </html>
   `);
+
   w.document.close();
 }
 
