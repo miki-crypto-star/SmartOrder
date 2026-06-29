@@ -183,6 +183,12 @@ summary{
   <div class="row" style="margin-top:12px;">
     <button onclick="downloadCSV()">CSV出力</button>
     <button class="green" onclick="downloadExcel()">Excel保存</button>
+    <button class="red" onclick="closeBusiness()">CSV出力して締め処理</button>
+  </div>
+
+  <div class="small" style="margin-top:10px;line-height:1.7;">
+    ※締め処理はCSVを出力したあと、Firebase内の orders を全削除します。<br>
+    ※Firebaseには店舗設定とメニューだけ残ります。
   </div>
 
 </div>
@@ -676,21 +682,78 @@ function deleteMenu(menuId){
 
 }
 
-function downloadCSV(){
+
+function csvEsc(v){
+  return '"' + String(v ?? "").replace(/"/g, '""') + '"';
+}
+
+function makeCSV(){
 
   let csv =
-  "日時,名前,注文種別,状態,税込\n";
+  "\uFEFF注文ID,日時,名前,注文種別,テーブル,状態,会計済み,商品番号,商品名,カテゴリ,数量,税込単価,税込小計,税抜合計,消費税合計,税込合計\n";
 
-  Object.values(ordersData).forEach(order => {
+  Object.entries(ordersData).forEach(([orderId, order]) => {
 
-    csv +=
-    `"${new Date(order.createdAt || 0).toLocaleString("ja-JP")}","${order.customerName || ""}","${order.orderType || ""}","${order.status || ""}","${order.totalInTax || 0}"\n`;
+    const items = order.items || {};
+    const itemList = Object.values(items);
+
+    if(itemList.length === 0){
+
+      csv += [
+        orderId,
+        new Date(order.createdAt || 0).toLocaleString("ja-JP"),
+        order.customerName || "",
+        order.orderType || "",
+        order.tableNo || "",
+        order.status || "",
+        order.paid ? "済" : "未",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        order.totalExTax || 0,
+        order.totalTax || 0,
+        order.totalInTax || 0
+      ].map(csvEsc).join(",") + "\\n";
+
+      return;
+    }
+
+    itemList.forEach(item => {
+
+      csv += [
+        orderId,
+        new Date(order.createdAt || 0).toLocaleString("ja-JP"),
+        order.customerName || "",
+        order.orderType || "",
+        order.tableNo || "",
+        order.status || "",
+        order.paid ? "済" : "未",
+        item.menuNumber || "",
+        item.name || "",
+        categoryLabel(item.category),
+        item.qty || 0,
+        item.priceInTax || 0,
+        item.subtotalInTax || 0,
+        order.totalExTax || 0,
+        order.totalTax || 0,
+        order.totalInTax || 0
+      ].map(csvEsc).join(",") + "\\n";
+
+    });
 
   });
 
+  return csv;
+}
+
+function downloadTextFile(content, filename, type){
+
   const blob =
-  new Blob([csv], {
-    type:"text/csv;charset=utf-8"
+  new Blob([content], {
+    type:type
   });
 
   const url =
@@ -701,9 +764,21 @@ function downloadCSV(){
 
   a.href = url;
 
-  a.download = "smartorder_sales.csv";
+  a.download = filename;
 
   a.click();
+
+  URL.revokeObjectURL(url);
+
+}
+
+function downloadCSV(){
+
+  downloadTextFile(
+    makeCSV(),
+    "smartorder_sales.csv",
+    "text/csv;charset=utf-8"
+  );
 
 }
 
@@ -750,6 +825,41 @@ function downloadExcel(){
   a.download = "smartorder_sales.xls";
 
   a.click();
+
+}
+
+
+function closeBusiness(){
+
+  if(Object.keys(ordersData).length === 0){
+    alert("締め処理する注文データがありません。");
+    return;
+  }
+
+  downloadCSV();
+
+  setTimeout(() => {
+
+    const ok1 =
+    confirm("CSVを出力しました。営業終了として注文データを削除しますか？");
+
+    if(!ok1) return;
+
+    const ok2 =
+    confirm("本当に orders を全削除します。CSV保存を確認しましたか？");
+
+    if(!ok2) return;
+
+    db.ref("shops/" + shopCode + "/orders")
+    .remove()
+    .then(() => {
+      alert("締め処理が完了しました。注文データを削除しました。");
+    })
+    .catch(err => {
+      alert("締め処理に失敗しました：" + err.message);
+    });
+
+  }, 700);
 
 }
 
