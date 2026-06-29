@@ -334,31 +334,35 @@ function toggleItemDone(orderId, itemId, current){
 function setProvided(orderId){
   if(!confirm("この注文を提供済みにしますか？")) return;
 
-  const hideAt = Date.now() + 5000;
+  const orderRef = db.ref("shops/" + shopCode + "/orders/" + orderId);
 
-  db.ref("shops/" + shopCode + "/orders/" + orderId).update({
+  orderRef.update({
     status: "provided",
     providedAt: Date.now(),
-    hideAt: hideAt,
+    hideAt: Date.now() + 5000,
     updatedAt: Date.now()
   });
 
-  setTimeout(renderOrders, 5200);
+  setTimeout(() => {
+    orderRef.remove();
+  }, 5000);
 }
 
 function cancelOrder(orderId){
   if(!confirm("この注文をキャンセルしますか？")) return;
 
-  const hideAt = Date.now() + 5000;
+  const orderRef = db.ref("shops/" + shopCode + "/orders/" + orderId);
 
-  db.ref("shops/" + shopCode + "/orders/" + orderId).update({
+  orderRef.update({
     status: "canceled",
     canceledAt: Date.now(),
-    hideAt: hideAt,
+    hideAt: Date.now() + 5000,
     updatedAt: Date.now()
   });
 
-  setTimeout(renderOrders, 5200);
+  setTimeout(() => {
+    orderRef.remove();
+  }, 5000);
 }
 
 function printReceipt(orderId){
